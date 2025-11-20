@@ -1,0 +1,50 @@
+﻿<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <title>Pregled Transakcija UZIVO</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f8f8f8; }
+        h1 { color: #333; }
+        table { width: 90%; margin-top: 20px; border-collapse: collapse; background-color: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+    </style>
+    
+    <script>
+        setTimeout(function(){
+            window.location.reload(1);
+        }, 5000); 
+    </script>
+</head>
+<body>
+    <h1>Pregled Poslednjih 50 Transakcija (UZIVO)</h1>
+    <p>Stranica se automatski osvezava svakih 5 sekundi.</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Vreme (UTC)</th>
+                <th>ID Koktela</th>
+                <th>Kolicina</th>
+                <th>Broj Stola</th>
+                <th>Cena pri narudzbi (RSD)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transakcija in transakcije %}
+            <tr>
+                <td>{{ transakcija.id }}</td>
+                <td>{{ transakcija.vremenska_oznaka }}</td>
+                <td>{{ transakcija.koktel_id }}</td>
+                <td>{{ transakcija.kolicina }}</td>
+                <td>{{ transakcija.broj_stola }}</td>
+                <td>{{ "%.2f" | format(transakcija.cena_pri_narudzbi) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
