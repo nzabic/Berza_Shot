@@ -8,4 +8,4 @@
 
 # git commit -m "Poruka, sta si radio"
 
-# git push
+# git push - Pushes everything to remote (github)
