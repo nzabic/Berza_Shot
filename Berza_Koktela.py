@@ -1,286 +1,386 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_apscheduler import APScheduler # Za racunanje cene na svakih 10 minuta?
+from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
-from sqlalchemy import func # Za racunanje u bazi/tabelama
-from flask import render_template, request, redirect, url_for  # DODAJEMO ove funkcije za rad sa webom
+from sqlalchemy import func
 
-# --- 1. Inicijalizacija Ekstenzija ---
-# SQLAlchemy objekat za upravljanje bazom podataka
+
+# ============================================================
+# 1. KONFIGURACIJA APLIKACIJE
+# ============================================================
+
+class Config:
+    """Konfiguraciona klasa za Flask aplikaciju."""
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///berza_koktela.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SCHEDULER_API_ENABLED = True
+
+
 db = SQLAlchemy()
-scheduler = APScheduler()  # INICIJALIZACIJA SCHEDULERA
+scheduler = APScheduler()
 
 
 def kreiraj_aplikaciju():
-    # Kreiranje Flask aplikacije
-    aplikacija = Flask(__name__)
+    """Kreira Flask aplikaciju, povezuje je sa SQLAlchemy i APScheduler-om."""
+    app = Flask(__name__)
+    app.config.from_object(Config)
 
-    # --- Konfiguracija Aplikacije ---
-    # Putanja do SQLite fajla za bazu podataka
-    aplikacija.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///berza_koktela.db'
-    # Iskljucivanje upozorenja
-    aplikacija.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+    scheduler.init_app(app)
 
-    # Konfiguracija za APScheduler
-    aplikacija.config['SCHEDULER_API_ENABLED'] = True
-
-    # Povezivanje 'db' objekta sa aplikacijom
-    db.init_app(aplikacija)
-
-    # Povezivanje 'scheduler' objekta sa aplikacijom
-    scheduler.init_app(aplikacija)
-
-    return aplikacija
+    return app
 
 
-# --- 2. Modeli Baze Podataka (Tabele) ---
+# ============================================================
+# 2. MODELI BAZE PODATAKA
+# ============================================================
 
 class Koktel(db.Model):
-    # Tabela za koktele i njihove trenutne cene
+    """Model za tabelu koktela."""
+
     id = db.Column(db.Integer, primary_key=True)
     naziv = db.Column(db.String(80), unique=True, nullable=False)
     bazna_cena = db.Column(db.Float, nullable=False)
 
-    # Cene koje se menjaju
     trenutna_cena = db.Column(db.Float, nullable=False)
-    prethodna_cena = db.Column(db.Float, nullable=False)  # Za strelicu GORE/DOLE
+    prethodna_cena = db.Column(db.Float, nullable=False)
 
-    # NOVE KOLONE ZA LIMITE CENE
     minimalna_cena = db.Column(db.Float, nullable=False)
     maksimalna_cena = db.Column(db.Float, nullable=False)
 
-    # Povezivanje sa tabelom narudzbi
-    transakcije = db.relationship('Transakcija', backref='koktel', lazy=True)
+    transakcije = db.relationship(
+        'Transakcija',
+        backref='koktel',
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+    def postavi_limite(self):
+        """
+        Automatski računa minimalnu i maksimalnu cenu na osnovu bazne cene.
+        Minimalna = 70% bazne cene
+        Maksimalna = 130% bazne cene
+        """
+        self.minimalna_cena = round(self.bazna_cena * 0.70, 2)
+        self.maksimalna_cena = round(self.bazna_cena * 1.30, 2)
+
+    def __init__(self, **kwargs):
+        """
+        Prilikom kreiranja koktela, ako korisnik ne prosledi min/max cenu,
+        oni se automatski izračunavaju iz bazne cene.
+        """
+        super().__init__(**kwargs)
+
+        if "minimalna_cena" not in kwargs or "maksimalna_cena" not in kwargs:
+            self.postavi_limite()
+
+    def postavi_novu_cenu(self, nova):
+        """Ažurira trenutnu i prethodnu cenu koktela."""
+        self.prethodna_cena = self.trenutna_cena
+        self.trenutna_cena = round(nova, 2)
 
     def __repr__(self):
         return f'<Koktel {self.naziv} Cena: {self.trenutna_cena:.2f}>'
 
 
 class Transakcija(db.Model):
-    # Tabela za belezenje svake porudzbine/prodaje
-    id = db.Column(db.Integer, primary_key=True)
+    """Model za svaku pojedinačnu prodaju koktela."""
 
-    # Strani kljuc koji ukazuje na ID koktela
+    id = db.Column(db.Integer, primary_key=True)
     koktel_id = db.Column(db.Integer, db.ForeignKey('koktel.id'), nullable=False)
 
     kolicina = db.Column(db.Integer, nullable=False)
     broj_stola = db.Column(db.String(10), nullable=False)
-
-    # Cena po kojoj je koktel narucen (fiksira cenu u trenutku narudzbe)
     cena_pri_narudzbi = db.Column(db.Float, nullable=False)
 
-    # Vremenska oznaka za analizu prodaje u poslednjih 10 minuta
-    vremenska_oznaka = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    vremenska_oznaka = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class IstorijaCena(db.Model):
-    # Tabela za belezenje svih promena cena (svakih 10 minuta)
+    """Model koji čuva svaku promenu cene koktela."""
+
     id = db.Column(db.Integer, primary_key=True)
     koktel_id = db.Column(db.Integer, db.ForeignKey('koktel.id'), nullable=False)
 
     stara_cena = db.Column(db.Float, nullable=False)
     nova_cena = db.Column(db.Float, nullable=False)
-    razlog = db.Column(db.String(100), nullable=True)
-
+    razlog = db.Column(db.String(100))
     vremenska_oznaka = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# --- 4. Logika za Azuriranje Cena (Berza) ---
+# ============================================================
+# 3. POMOĆNE FUNKCIJE
+# ============================================================
 
-def azuriraj_cene_koktela(aplikacija):
-    # Ovu funkciju APScheduler pokrece automatski svakih 30 sekundi
-    with aplikacija.app_context():
+def racunaj_novu_cenu(stara, prodato, min_cena, max_cena):
+    """
+    Pravilo za menjanje cena koktela:
+    - ako je prodato > 0, cena raste 1% po komadu
+    - ako nije prodato ništa, cena opada 2%
+    - cena se ograničava u [min_cena, max_cena]
+    """
+    if prodato > 0:
+        nova = stara * (1 + prodato * 0.01)
+    else:
+        nova = stara * 0.98
 
-        # 1. Definisemo vremenski prozor (poslednjih 30 sekundi)
-        vremenski_prozor = datetime.utcnow() - timedelta(seconds=30) # IZMENA: 30 sekundi
+    return max(min_cena, min(round(nova, 2), max_cena))
 
-        # 2. Brojimo ukupnu kolicinu prodatu po koktelu u tom periodu
-        podaci_o_prodaji = db.session.query(
+
+def validiraj_unos(request):
+    """Validira POST unos za narudžbine."""
+    try:
+        koktel_id = int(request.form.get('koktel_id'))
+        kolicina = int(request.form.get('kolicina'))
+        broj_stola = request.form.get('broj_stola').strip()
+
+        if kolicina <= 0 or not broj_stola:
+            raise ValueError()
+
+        return koktel_id, kolicina, broj_stola
+
+    except Exception:
+        return None
+
+
+# ============================================================
+# 4. AUTOMATSKA PROMENA CENA (SCHEDULER)
+# ============================================================
+
+def azuriraj_cene_koktela(app):
+    """
+    Scheduler funkcija — izvršava se svakih 30 sekundi.
+    Računa prodaju u poslednjih 30 sekundi i menja cene koktela.
+    """
+    with app.app_context():
+
+        cutoff = datetime.utcnow() - timedelta(seconds=30)
+
+        podaci = db.session.query(
             Transakcija.koktel_id,
-            func.sum(Transakcija.kolicina).label('ukupno_prodato')
+            func.sum(Transakcija.kolicina).label("ukupno")
         ).filter(
-            Transakcija.vremenska_oznaka >= vremenski_prozor
-        ).group_by(Transakcija.koktel_id).all()
+            Transakcija.vremenska_oznaka >= cutoff
+        ).group_by(
+            Transakcija.koktel_id
+        ).all()
 
-        # Mapiramo rezultate za lakse citanje
-        mapa_prodaje = {item.koktel_id: item.ukupno_prodato for item in podaci_o_prodaji}
+        mapa_prodaje = {p.koktel_id: p.ukupno for p in podaci}
 
-        # 3. Iteriramo kroz sve koktele i primenjujemo procentualna pravila
-        svi_kokteli = Koktel.query.all()
+        for koktel in Koktel.query.all():
+            prodato = mapa_prodaje.get(koktel.id, 0)
+            stara = koktel.trenutna_cena
 
-        for koktel in svi_kokteli:
-            prodato = mapa_prodaje.get(koktel.id, 0)  # 0 ako nista nije prodato
+            nova = racunaj_novu_cenu(
+                stara,
+                prodato,
+                koktel.minimalna_cena,
+                koktel.maksimalna_cena
+            )
 
-            stara_cena = koktel.trenutna_cena
-
-            if prodato > 0:
-                # Pravilo: Za svaku jedinicu raste za 1%
-                faktor_povecanja = 1 + (prodato * 0.01)
-                nova_cena = stara_cena * faktor_povecanja
-            else:
-                # Pravilo: Opadanje za 2% od prethodne cene
-                faktor_smanjenja = 0.98
-                nova_cena = stara_cena * faktor_smanjenja
-
-            # 4. Postavljanje GORNJEG i DONJEG limita cene
-            nova_cena = max(koktel.minimalna_cena, min(nova_cena, koktel.maksimalna_cena))
-
-            # 5. Belezenje promene u tabeli IstorijaCena
-            if round(nova_cena, 2) != round(stara_cena, 2):
-                istorija = IstorijaCena(
+            if nova != round(stara, 2):
+                db.session.add(IstorijaCena(
                     koktel_id=koktel.id,
-                    stara_cena=stara_cena,
-                    nova_cena=nova_cena,
-                    razlog=f'{prodato} prodato (promena: {(nova_cena - stara_cena) / stara_cena * 100:.2f}%)'
-                )
-                db.session.add(istorija)
+                    stara_cena=stara,
+                    nova_cena=nova,
+                    razlog=f"{prodato} prodato"
+                ))
 
-            # 6. Azuriranje Koktel tabele
-            koktel.prethodna_cena = stara_cena
-            koktel.trenutna_cena = round(nova_cena, 2)
+            koktel.postavi_novu_cenu(nova)
 
         db.session.commit()
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Cene azurirane.")
 
-## --- 3. Rute Aplikacije ---
 
-def registruj_rute(aplikacija):
+# ============================================================
+# 5. RUTE
+# ============================================================
 
-    # RUTA 1: Prikaz TV Ekrana (sluzi HTML)
-    @aplikacija.route('/tv')
+def registruj_rute(app):
+
+    @app.route('/tv')
     def tv_ekran():
-        # Ova ruta samo renderuje HTML fajl koji ce JS-om povlaciti cene
         return render_template('tv_ekran.html')
 
-    # RUTA 2: API ruta za TV Ekran (sluzi JSON podatke)
-    @aplikacija.route('/api/cene_uzivo')
+    @app.route('/api/cene_uzivo')
     def api_cene_uzivo():
-        # Preuzmi sve koktele
-        svi_kokteli = Koktel.query.all()
+        return jsonify([
+            {
+                'id': k.id,
+                'naziv': k.naziv,
+                'cena': round(k.trenutna_cena, 2),
+                'smer': 1 if k.trenutna_cena > k.prethodna_cena else
+                        -1 if k.trenutna_cena < k.prethodna_cena else 0
+            }
+            for k in Koktel.query.all()
+        ])
 
-        # Konvertuj objekte u listu recnika (JSON format)
-        lista_cena = []
-        for koktel in svi_kokteli:
-            # Izracunaj smer promene cene
-            promena_smer = 0
-            if koktel.trenutna_cena > koktel.prethodna_cena:
-                promena_smer = 1
-            elif koktel.trenutna_cena < koktel.prethodna_cena:
-                promena_smer = -1
-
-            lista_cena.append({
-                'id': koktel.id,
-                'naziv': koktel.naziv,
-                'cena': round(koktel.trenutna_cena, 2),
-                'smer': promena_smer
-            })
-
-        return jsonify(lista_cena)
-
-     # RUTA 3: PREGLED TRANSAKCIJA (ANALITIKA)
-    @aplikacija.route('/transakcije')
+    @app.route('/transakcije')
     def pregled_transakcija():
-            # Preuzima 50 najnovijih narudzbi, sortirane po vremenu
-            sve_transakcije = Transakcija.query.order_by(Transakcija.vremenska_oznaka.desc()).limit(50).all()
+        transakcije = Transakcija.query.order_by(
+            Transakcija.vremenska_oznaka.desc()
+        ).limit(50).all()
 
-            # Prikazuje podatke u HTML fajlu
-            return render_template('pregled_transakcija.html', transakcije=sve_transakcije)
+        return render_template('pregled_transakcija.html', transakcije=transakcije)
 
-    # RUTA 4: Unos narudzbe (Barmen)
-    @aplikacija.route('/unos_narudzbe', methods=['GET', 'POST'])
+    @app.route("/api/cene_sa_baznom")
+    def cene_sa_baznom():
+        return jsonify([
+            {
+                "id": k.id,
+                "naziv": k.naziv,
+                "cena": k.trenutna_cena,
+                "bazna": k.bazna_cena
+            }
+            for k in Koktel.query.all()
+        ])
+
+    @app.route('/unos_narudzbe', methods=['GET', 'POST'])
     def unos_narudzbe():
-        # Preuzmi sve koktele iz baze da bi ih prikazali u formi
-        svi_kokteli = Koktel.query.all()
+        kokteli = Koktel.query.all()
 
         if request.method == 'POST':
-            # 1. Prikupljanje podataka iz forme
-            koktel_id = request.form.get('koktel_id')
-            kolicina_str = request.form.get('kolicina')
-            broj_stola = request.form.get('broj_stola')
-
-            # Konverzija kolicine u broj (integer) i osnovna provera
-            try:
-                kolicina = int(kolicina_str)
-                if kolicina <= 0 or not koktel_id or not broj_stola:
-                    return redirect(url_for('unos_narudzbe'))
-            except ValueError:
+            podaci = validiraj_unos(request)
+            if not podaci:
                 return redirect(url_for('unos_narudzbe'))
 
-            # 2. Preuzimanje trenutne cene koktela
-            odabrani_koktel = Koktel.query.get(koktel_id)
+            koktel_id, kolicina, broj_stola = podaci
+            koktel = Koktel.query.get(koktel_id)
 
-            if odabrani_koktel:
-                # 3. Kreiranje novog zapisa u tabeli Transakcija
-                nova_transakcija = Transakcija(
-                    koktel_id=odabrani_koktel.id,
+            if koktel:
+                nova_trans = Transakcija(
+                    koktel_id=koktel.id,
                     kolicina=kolicina,
                     broj_stola=broj_stola,
-                    cena_pri_narudzbi=odabrani_koktel.trenutna_cena,  # Belezenje trenutne cene!
+                    cena_pri_narudzbi=koktel.trenutna_cena,
                     vremenska_oznaka=datetime.utcnow()
                 )
-                db.session.add(nova_transakcija)
+
+                db.session.add(nova_trans)
                 db.session.commit()
 
                 return redirect(url_for('unos_narudzbe'))
 
-        # Prikazi HTML formu (unos_narudzbe.html)
-        return render_template('unos_narudzbe.html', kokteli=svi_kokteli)
+        return render_template('unos_narudzbe.html', kokteli=kokteli)
 
-# --- 5. Pokretanje Aplikacije i Inicijalizacija Baze (MODIFIKOVANO) ---
-if __name__ == '__main__':
-    # 1. Kreiranje aplikacije
-    aplikacija = kreiraj_aplikaciju()
+    @app.route('/dashboard')
+    def dashboard():
+        """Dashboard sa grafikonima istorije cena i prodaje."""
+        kokteli = Koktel.query.all()
+        return render_template('dashboard.html', kokteli=kokteli)
 
-    # 2. Povezivanje ruta sa aplikacijom
-    registruj_rute(aplikacija)
+    @app.route('/api/istorija_cena/<int:koktel_id>')
+    def api_istorija_cena(koktel_id):
+        """API: vraća istoriju promena cena za zadati koktel."""
+        podaci = IstorijaCena.query.filter_by(koktel_id=koktel_id) \
+                                   .order_by(IstorijaCena.vremenska_oznaka.asc()) \
+                                   .all()
 
-    # 3. Kreiranje tabela i dodavanje početnih podataka unutar konteksta aplikacije
-    with aplikacija.app_context():
-        # Kreira tabele (Koktel, Transakcija, IstorijaCena) u fajlu berza_koktela.db
-        db.create_all()
+        return jsonify([
+            {
+                "vreme": h.vremenska_oznaka.strftime("%Y-%m-%d %H:%M:%S"),
+                "stara": h.stara_cena,
+                "nova": h.nova_cena
+            }
+            for h in podaci
+        ])
 
-        # Dodavanje početnih koktela ako baza ne sadrži nijedan (Ostaje isto)
-        if not Koktel.query.first():
-            db.session.add_all([
-                Koktel(
-                    naziv='Margarita',
-                    bazna_cena=10.00,
-                    trenutna_cena=10.00,
-                    prethodna_cena=10.00,
-                    minimalna_cena=8.00,
-                    maksimalna_cena=15.00
-                ),
-                Koktel(
-                    naziv='Mojito',
-                    bazna_cena=9.50,
-                    trenutna_cena=9.50,
-                    prethodna_cena=9.50,
-                    minimalna_cena=7.50,
-                    maksimalna_cena=14.00
-                ),
-                Koktel(
-                    naziv='Old Fashioned',
-                    bazna_cena=12.00,
-                    trenutna_cena=12.00,
-                    prethodna_cena=12.00,
-                    minimalna_cena=10.00,
-                    maksimalna_cena=18.00
-                )
-            ])
-            db.session.commit()
-            print("Pocetni kokteli dodati u bazu podataka.")
+    @app.route('/api/prodaja/<int:koktel_id>')
+    def api_prodaja(koktel_id):
+        """
+        API: agregirana prodaja po vremenu za zadati koktel.
+        Grupisanje po minuti (format YYYY-MM-DD HH:MM).
+        Napomena: func.strftime radi na SQLite-u; za druge baze treba prilagoditi.
+        """
+        podaci = db.session.query(
+            func.sum(Transakcija.kolicina).label("ukupno"),
+            func.strftime("%Y-%m-%d %H:%M", Transakcija.vremenska_oznaka)
+        ).filter(
+            Transakcija.koktel_id == koktel_id
+        ).group_by(
+            func.strftime("%Y-%m-%d %H:%M", Transakcija.vremenska_oznaka)
+        ).order_by(
+            func.min(Transakcija.vremenska_oznaka)
+        ).all()
 
-    # 4. STARTOVANJE SCHEDULERA
+        return jsonify([
+            {"vreme": t[1], "kolicina": t[0]}
+            for t in podaci
+        ])
+
+
+# ============================================================
+# 6. INICIJALIZACIJA BAZE
+# ============================================================
+
+def inicijalizuj_bazu():
+    """
+    Kreira tabele i dodaje početne koktele.
+    Limiti se automatski računaju, nije ih potrebno unositi ručno.
+    """
+    db.create_all()
+
+    if not Koktel.query.first():
+
+        kokteli = [
+            Koktel(
+                naziv='Margarita',
+                bazna_cena=10.00,
+                trenutna_cena=10.00,
+                prethodna_cena=10.00
+            ),
+            Koktel(
+                naziv='Mojito',
+                bazna_cena=9.50,
+                trenutna_cena=9.50,
+                prethodna_cena=9.50
+            ),
+            Koktel(
+                naziv='Old Fashioned',
+                bazna_cena=12.00,
+                trenutna_cena=12.00,
+                prethodna_cena=12.00
+            )
+        ]
+
+        db.session.add_all(kokteli)
+        db.session.commit()
+        print("Početni kokteli dodati sa automatskim limitima.")
+
+
+# ============================================================
+# 7. SCHEDULER
+# ============================================================
+
+def podesi_scheduler(app):
+    """Registruje periodični APScheduler zadatak."""
     scheduler.add_job(
-        id='AzuiranjeCenaJob',
+        id='AzuriranjeCenaJob',
         func=azuriraj_cene_koktela,
-        args=[aplikacija],  # Prosledjujemo aplikaciju funkciji
+        args=[app],
         trigger='interval',
-        seconds=30,  # IZMENA: Pokrece se svakih 30 sekundi
+        seconds=30,
         max_instances=1,
         coalesce=True
     )
     scheduler.start()
 
-    # 5. Pokretanje servera (OBAVEZNO: use_reloader=False)
-    aplikacija.run(debug=True, use_reloader=False)
+
+# ============================================================
+# 8. MAIN — POKRETANJE APLIKACIJE
+# ============================================================
+
+def main():
+    app = kreiraj_aplikaciju()
+    registruj_rute(app)
+
+    with app.app_context():
+        inicijalizuj_bazu()
+
+    podesi_scheduler(app)
+
+    app.run(debug=True, use_reloader=False)
+
+
+if __name__ == '__main__':
+    main()

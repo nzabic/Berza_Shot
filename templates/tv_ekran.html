@@ -3,124 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <title>Berza Koktela - LIVE</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        /* Moderni, tamni stil za TV ekran */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #1a1a1a; 
-            color: #fff; 
-            padding: 20px;
+        body {
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 10px 20px;
+            margin: 0;
         }
-        h1 { 
-            text-align: center; 
-            color: #4CAF50; /* Zeleni naslov */
-            font-size: 3em;
-            margin-bottom: 30px;
+
+        h1 {
+            text-align: center;
+            font-size: 2.4em;
+            margin: 10px 0 20px 0;
+            color: #4CAF50;
         }
-        #tabela-cena { 
-            width: 80%; 
-            margin: 0 auto; 
-            border-collapse: collapse; 
-            font-size: 2.2em; /* Veliki font za TV */
+
+        /* Kompaktan red */
+        .koktel-red {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1c1c1c;
+            padding: 8px 12px;
+            margin: 8px auto;
+            border-radius: 10px;
+            width: 98%;
+            height: 80px;   /* KLJUČNO za fitovanje */
         }
-        #tabela-cena th, #tabela-cena td { 
-            padding: 20px 30px; 
-            text-align: left; 
-            border-bottom: 1px solid #333; 
-        }
-        #tabela-cena th { 
-            background-color: #2c2c2c; 
-            font-weight: 300;
-        }
-        .cena { 
-            font-weight: bold; 
+
+        .ime {
+            width: 22%;
+            font-size: 1.6em; /* manji font */
+            font-weight: bold;
             white-space: nowrap;
         }
-        .indikator { 
-            font-size: 1.5em; 
-            margin-left: 15px; 
-            animation: blink 1s infinite alternate; /* Animacija za isticanje promene */
+
+        .cena {
+            width: 15%;
+            text-align: center;
+            font-size: 1.6em;
+            font-weight: bold;
         }
-        .gore { 
-            color: #4CAF50; /* Zelena za rast */
-        } 
-        .dole { 
-            color: #f44336; /* Crvena za pad */
+
+        .indikator {
+            font-size: 1.2em;
+            margin-left: 6px;
         }
-        .stabilno {
-            color: #aaa;
-        }
-        
-        /* CSS Animacija za treperenje */
-        @keyframes blink {
-            from { opacity: 1; }
-            to { opacity: 0.5; }
+
+        .gore { color: #4CAF50; }
+        .dole { color: #ff4d4d; }
+        .stabilno { color: #ccc; }
+
+        /* Mini sparkline grafikon */
+        canvas {
+            width: 58%;
+            height: 65px;   /* prilagođeno da stane 10 redova */
         }
     </style>
 </head>
+
 <body>
-    <h1>Berza Koktela - LIVE CENE</h1>
-    
-    <table id="tabela-cena">
-        <thead>
-            <tr>
-                <th>Koktel</th>
-                <th style="width: 25%;">Cena (RSD)</th>
-            </tr>
-        </thead>
-        <tbody id="lista-koktela">
-            </tbody>
-    </table>
 
-    <script>
-        const listaKoktelaElement = document.getElementById('lista-koktela');
+<h1>Berza Koktela – LIVE</h1>
 
-        function azurirajPrikazCena() {
-            // Asinhroni poziv API rute koju ste definisali (/api/cene_uzivo)
-            fetch('/api/cene_uzivo')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Mreza nije odgovorila.');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    listaKoktelaElement.innerHTML = ''; // Brisanje starog sadrzaja
-                    
-                    data.forEach(koktel => {
-                        let klasaIndikatora = '';
-                        let strelica = '';
+<div id="lista"></div>
 
-                        // Postavljanje strelice i boje na osnovu 'smer' (1, 0, -1)
-                        if (koktel.smer === 1) {
-                            strelica = '▲'; 
-                            klasaIndikatora = 'gore';
-                        } else if (koktel.smer === -1) {
-                            strelica = '▼';
-                            klasaIndikatora = 'dole';
-                        } else {
-                             strelica = '—';
-                             klasaIndikatora = 'stabilno';
-                        }
+<script>
+async function ucitajSve() {
 
-                        const red = document.createElement('tr');
-                        red.innerHTML = `
-                            <td>${koktel.naziv}</td>
-                            <td class="cena">
-                                ${koktel.cena.toFixed(2)} RSD
-                                <span class="indikator ${klasaIndikatora}">${strelica}</span>
-                            </td>
-                        `;
-                        listaKoktelaElement.appendChild(red);
-                    });
-                })
-                .catch(error => console.error('Greska pri povlacenju cena:', error));
+    const lista = document.getElementById("lista");
+    lista.innerHTML = "";
+
+    const kokteli = await fetch("/api/cene_uzivo").then(r => r.json());
+    const bazne = await fetch("/api/cene_sa_baznom").then(r => r.json());
+
+    for (const k of kokteli) {
+
+        const red = document.createElement("div");
+        red.className = "koktel-red";
+
+        const bazna = bazne.find(x => x.id === k.id).bazna;
+
+        red.innerHTML = `
+            <div class="ime">${k.naziv}</div>
+
+            <div class="cena">
+                ${k.cena.toFixed(2)}
+                <span class="indikator ${
+                    k.smer === 1 ? "gore" :
+                    k.smer === -1 ? "dole" : "stabilno"
+                }">
+                    ${k.smer === 1 ? "▲" : k.smer === -1 ? "▼" : "—"}
+                </span>
+            </div>
+
+            <canvas id="chart_${k.id}"></canvas>
+        `;
+
+        lista.appendChild(red);
+
+        iscrtajGrafikon(k.id, bazna);
+    }
+}
+
+
+async function iscrtajGrafikon(id, bazna) {
+
+    const istorija = await fetch(`/api/istorija_cena/${id}`).then(r => r.json());
+    if (istorija.length === 0) return;
+
+    const labels = istorija.map(x => x.vreme);
+    const vrednosti = istorija.map(x => x.nova);
+    const poslednja = vrednosti.at(-1);
+
+    const linija = poslednja >= bazna ? "#4CAF50" : "#ff4d4d";
+    const pozadina = poslednja >= bazna
+        ? "rgba(76,175,80,0.25)"
+        : "rgba(255,77,77,0.25)";
+
+    new Chart(document.getElementById(`chart_${id}`).getContext("2d"), {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                data: vrednosti,
+                borderColor: linija,
+                backgroundColor: pozadina,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false }},
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            },
+            elements: {
+                point: { radius: 0 }  // bez tačkica = sparkline stil
+            }
         }
+    });
+}
 
-        // 1. Pokreni azuriranje odmah
-        azurirajPrikazCena();
-        // 2. Ponavljaj svakih 5 sekundi (Polling)
-        setInterval(azurirajPrikazCena, 5000); 
-    </script>
+
+ucitajSve();
+setInterval(ucitajSve, 8000);
+</script>
+
 </body>
 </html>
