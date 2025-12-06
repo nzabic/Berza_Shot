@@ -22,7 +22,6 @@
             color: #4CAF50;
         }
 
-        /* Kompaktan red */
         .koktel-red {
             display: flex;
             align-items: center;
@@ -32,12 +31,12 @@
             margin: 8px auto;
             border-radius: 10px;
             width: 98%;
-            height: 80px;   /* KLJUČNO za fitovanje */
+            height: 80px;
         }
 
         .ime {
             width: 22%;
-            font-size: 1.6em; /* manji font */
+            font-size: 1.6em;
             font-weight: bold;
             white-space: nowrap;
         }
@@ -58,10 +57,9 @@
         .dole { color: #ff4d4d; }
         .stabilno { color: #ccc; }
 
-        /* Mini sparkline grafikon */
         canvas {
             width: 58%;
-            height: 65px;   /* prilagođeno da stane 10 redova */
+            height: 65px;
         }
     </style>
 </head>
@@ -111,6 +109,7 @@ async function ucitajSve() {
 }
 
 
+
 async function iscrtajGrafikon(id, bazna) {
 
     const istorija = await fetch(`/api/istorija_cena/${id}`).then(r => r.json());
@@ -120,32 +119,47 @@ async function iscrtajGrafikon(id, bazna) {
     const vrednosti = istorija.map(x => x.nova);
     const poslednja = vrednosti.at(-1);
 
-    const linija = poslednja >= bazna ? "#4CAF50" : "#ff4d4d";
-    const pozadina = poslednja >= bazna
+    // Color logic
+    const lineColor = poslednja >= bazna ? "#4CAF50" : "#ff4d4d";
+    const fillColor = poslednja >= bazna
         ? "rgba(76,175,80,0.25)"
         : "rgba(255,77,77,0.25)";
 
     new Chart(document.getElementById(`chart_${id}`).getContext("2d"), {
         type: "line",
         data: {
-            labels,
-            datasets: [{
-                data: vrednosti,
-                borderColor: linija,
-                backgroundColor: pozadina,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3
-            }]
+            labels: labels,
+            datasets: [
+
+                // === CURRENT PRICE LINE ===
+                {
+                    data: vrednosti,
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                },
+
+                // === BASE PRICE DASHED LINE ===
+                {
+                    label: "Base",
+                    data: Array(vrednosti.length).fill(bazna),
+                    borderColor: "#cccccc",
+                    borderDash: [6, 6],
+                    borderWidth: 1.5,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0
+                }
+            ]
         },
         options: {
             plugins: { legend: { display: false }},
             scales: {
                 x: { display: false },
                 y: { display: false }
-            },
-            elements: {
-                point: { radius: 0 }  // bez tačkica = sparkline stil
             }
         }
     });
