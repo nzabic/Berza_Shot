@@ -102,7 +102,39 @@
 
 <div id="lista"></div>
 
+<video id="clipVideo" muted autoplay playsinline style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:#000;"></video>
+
 <script>
+// Clip playback
+let clipPlaying = false;
+let playCount = 0;
+const MAX_PLAYS = 3;
+
+async function checkClip() {
+    if (clipPlaying) return;
+
+    const res = await fetch("/api/check_clip").then(r => r.json());
+    if (res.play && playCount < MAX_PLAYS) {
+        clipPlaying = true;
+        const video = document.getElementById("clipVideo");
+        video.src = "/static/" + res.clip;
+        video.style.display = "block";
+        video.play();
+
+        video.onended = () => {
+            playCount++;
+            if (playCount < MAX_PLAYS) {
+                video.play();
+            } else {
+                video.style.display = "none";
+                clipPlaying = false;
+            }
+        };
+    }
+}
+
+setInterval(checkClip, 2000);
+
 async function ucitajSve() {
 
     const lista = document.getElementById("lista");

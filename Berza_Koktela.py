@@ -6,6 +6,19 @@ from sqlalchemy import func
 
 
 # ============================================================
+# CLIP CONFIG - change these as needed
+# ============================================================
+CLIP_FILE = "tramp_mai_tai.mp4"           # filename in static/ folder
+CLIP_DELAY_SECONDS = 105         # 1:45 after server start
+CLIP_PRICE_THRESHOLD = 550       # Blue Frog price threshold
+CLIP_COCKTAIL_NAME = "BLUE FROG"
+
+# Runtime state
+SERVER_START_TIME = None
+clip_triggered = False
+
+
+# ============================================================
 # 1. KONFIGURACIJA APLIKACIJE
 # ============================================================
 
@@ -228,6 +241,35 @@ def registruj_rute(app):
         kokteli = Koktel.query.all()
         return render_template('dashboard.html', kokteli=kokteli)
 
+    @app.route('/api/check_clip')
+    def check_clip():
+        global clip_triggered
+
+        # Don't trigger again if already played
+        if clip_triggered:
+            return jsonify({"play": False, "clip": CLIP_FILE})
+
+        # Check time condition
+        elapsed = (datetime.utcnow() - SERVER_START_TIME).total_seconds()
+        if elapsed < CLIP_DELAY_SECONDS:
+            return jsonify({"play": False, "clip": CLIP_FILE})
+
+        # Check price condition
+        blue_frog = Koktel.query.filter_by(naziv=CLIP_COCKTAIL_NAME).first()
+        if not blue_frog or blue_frog.trenutna_cena <= CLIP_PRICE_THRESHOLD:
+            return jsonify({"play": False, "clip": CLIP_FILE})
+
+        # All conditions met - trigger once
+        clip_triggered = True
+        return jsonify({"play": True, "clip": CLIP_FILE})
+
+    @app.route('/api/reset_clip')
+    def reset_clip():
+        global clip_triggered, SERVER_START_TIME
+        clip_triggered = False
+        SERVER_START_TIME = datetime.utcnow()
+        return jsonify({"status": "reset", "message": "Clip reset, timer restarted"})
+
 # ============================================================
 # 6. INICIJALIZACIJA BAZE
 # ============================================================
@@ -291,6 +333,9 @@ def podesi_scheduler(app):
 # ============================================================
 
 def main():
+    global SERVER_START_TIME
+    SERVER_START_TIME = datetime.utcnow()
+
     app = kreiraj_aplikaciju()
     registruj_rute(app)
 
