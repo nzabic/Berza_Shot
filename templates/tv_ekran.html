@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <title>Berza Koktela - LIVE</title>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <style>
         body {
             background: #111;
@@ -15,58 +13,92 @@
             margin: 0;
         }
 
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            height: 60px;
+            width: auto;
+            opacity: 0.9;
+        }
+
         h1 {
             text-align: center;
             font-size: 2.4em;
-            margin: 10px 0 20px 0;
+            margin: 0;
             color: #4CAF50;
+            white-space: nowrap;
+        }
+
+        #lista {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
         }
 
         .koktel-red {
             display: flex;
             align-items: center;
             justify-content: space-between;
+
             background: #1c1c1c;
-            padding: 8px 12px;
-            margin: 8px auto;
+            padding: 12px 14px;
+            margin: 8px 0;
             border-radius: 10px;
-            width: 98%;
+
+            width: 48%;
             height: 80px;
+            box-sizing: border-box;
         }
 
         .ime {
-            width: 22%;
-            font-size: 1.6em;
+            width: 55%;
+            font-size: 1.65em;
             font-weight: bold;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
+        /* PRICE + ARROW ARE NOW FULLY CENTERED */
         .cena {
-            width: 15%;
-            text-align: center;
-            font-size: 1.6em;
+            width: 40%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;   /* ★ Align arrow vertically with price */
+            gap: 8px;
+
+            font-size: 2.6em;
             font-weight: bold;
         }
 
         .indikator {
-            font-size: 1.2em;
-            margin-left: 6px;
+            font-size: 1.4em;
+            line-height: 1;       /* ★ Prevent downward shift */
+            position: relative;
+            top: -2px;            /* ★ Fine-tuned alignment */
         }
 
         .gore { color: #4CAF50; }
         .dole { color: #ff4d4d; }
         .stabilno { color: #ccc; }
 
-        canvas {
-            width: 58%;
-            height: 65px;
-        }
     </style>
 </head>
 
 <body>
 
-<h1>Berza Koktela – LIVE</h1>
+<div class="title-row">
+    <img src="/static/shootiranje.png" class="logo">
+    <h1>Berza Koktela – LIVE</h1>
+    <img src="/static/shootiranje.png" class="logo">
+</div>
 
 <div id="lista"></div>
 
@@ -77,14 +109,16 @@ async function ucitajSve() {
     lista.innerHTML = "";
 
     const kokteli = await fetch("/api/cene_uzivo").then(r => r.json());
-    const bazne = await fetch("/api/cene_sa_baznom").then(r => r.json());
 
     for (const k of kokteli) {
 
         const red = document.createElement("div");
         red.className = "koktel-red";
 
-        const bazna = bazne.find(x => x.id === k.id).bazna;
+        const arrow =
+            k.smer === 1 ? "↗" :
+            k.smer === -1 ? "↘" :
+            "—";
 
         red.innerHTML = `
             <div class="ime">${k.naziv}</div>
@@ -93,78 +127,17 @@ async function ucitajSve() {
                 ${k.cena.toFixed(2)}
                 <span class="indikator ${
                     k.smer === 1 ? "gore" :
-                    k.smer === -1 ? "dole" : "stabilno"
+                    k.smer === -1 ? "dole" :
+                    "stabilno"
                 }">
-                    ${k.smer === 1 ? "▲" : k.smer === -1 ? "▼" : "—"}
+                    ${arrow}
                 </span>
             </div>
-
-            <canvas id="chart_${k.id}"></canvas>
         `;
 
         lista.appendChild(red);
-
-        iscrtajGrafikon(k.id, bazna);
     }
 }
-
-
-
-async function iscrtajGrafikon(id, bazna) {
-
-    const istorija = await fetch(`/api/istorija_cena/${id}`).then(r => r.json());
-    if (istorija.length === 0) return;
-
-    const labels = istorija.map(x => x.vreme);
-    const vrednosti = istorija.map(x => x.nova);
-    const poslednja = vrednosti.at(-1);
-
-    // Color logic
-    const lineColor = poslednja >= bazna ? "#4CAF50" : "#ff4d4d";
-    const fillColor = poslednja >= bazna
-        ? "rgba(76,175,80,0.25)"
-        : "rgba(255,77,77,0.25)";
-
-    new Chart(document.getElementById(`chart_${id}`).getContext("2d"), {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [
-
-                // === CURRENT PRICE LINE ===
-                {
-                    data: vrednosti,
-                    borderColor: lineColor,
-                    backgroundColor: fillColor,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0
-                },
-
-                // === BASE PRICE DASHED LINE ===
-                {
-                    label: "Base",
-                    data: Array(vrednosti.length).fill(bazna),
-                    borderColor: "#cccccc",
-                    borderDash: [6, 6],
-                    borderWidth: 1.5,
-                    fill: false,
-                    pointRadius: 0,
-                    tension: 0
-                }
-            ]
-        },
-        options: {
-            plugins: { legend: { display: false }},
-            scales: {
-                x: { display: false },
-                y: { display: false }
-            }
-        }
-    });
-}
-
 
 ucitajSve();
 setInterval(ucitajSve, 8000);

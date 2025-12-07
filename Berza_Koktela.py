@@ -51,11 +51,6 @@ class Koktel(db.Model):
     )
 
     def postavi_limite(self):
-        """
-        Automatski računa minimalnu i maksimalnu cenu na osnovu bazne cene.
-        Minimalna = 70% bazne cene
-        Maksimalna = 130% bazne cene
-        """
         self.minimalna_cena = round(self.bazna_cena * 0.70, 2)
         self.maksimalna_cena = round(self.bazna_cena * 1.30, 2)
 
@@ -66,12 +61,8 @@ class Koktel(db.Model):
         self.prethodna_cena = self.bazna_cena
 
     def postavi_novu_cenu(self, nova):
-        """Ažurira trenutnu i prethodnu cenu koktela."""
         self.prethodna_cena = self.trenutna_cena
         self.trenutna_cena = round(nova, 2)
-
-    def __repr__(self):
-        return f'<Koktel {self.naziv}, Cena: {self.trenutna_cena:.2f}>'
 
 
 class Transakcija(db.Model):
@@ -79,6 +70,9 @@ class Transakcija(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     koktel_id = db.Column(db.Integer, db.ForeignKey('koktel.id'), nullable=False)
+
+    koktel_ime = db.Column(db.String(80), nullable=False)  # ★ ADDED FIELD
+
     kolicina = db.Column(db.Integer, nullable=False)
     broj_stola = db.Column(db.String(10), nullable=False)
     cena_pri_narudzbi = db.Column(db.Float, nullable=False)
@@ -86,8 +80,6 @@ class Transakcija(db.Model):
 
 
 class IstorijaCena(db.Model):
-    """Model koji čuva svaku promenu cene koktela."""
-
     id = db.Column(db.Integer, primary_key=True)
     koktel_id = db.Column(db.Integer, db.ForeignKey('koktel.id'), nullable=False)
     stara_cena = db.Column(db.Float, nullable=False)
@@ -101,23 +93,14 @@ class IstorijaCena(db.Model):
 # ============================================================
 
 def racunaj_novu_cenu(stara, prodato, min_cena, max_cena):
-    """
-    Pravilo za menjanje cena koktela:
-    - ako je prodato > 0, cena raste 1% po komadu
-    - ako nije prodato ništa, cena opada 2%
-    - cena se ograničava u [min_cena, max_cena]
-    """
     if prodato > 0:
         nova = stara * (1 + prodato * 0.01)
     else:
         nova = stara * 0.98
-
-
     return max(min_cena, min(round(nova, 2), max_cena))
 
 
 def validiraj_unos(request):
-    """Validira POST unos za narudžbine."""
     try:
         return (
             int(request.form["koktel_id"]),
@@ -129,7 +112,7 @@ def validiraj_unos(request):
 
 
 # ============================================================
-# 4. AUTOMATSKA PROMENA CENA (SCHEDULER)
+# 4. AUTOMATSKA PROMENA CENA
 # ============================================================
 
 def azuriraj_cene_koktela(app):
@@ -168,7 +151,7 @@ def azuriraj_cene_koktela(app):
             k.postavi_novu_cenu(nova)
 
         db.session.commit()
-        print(f"[{datetime.now():%H:%M:%S}] ✔ Ažurirane cene")  # IZMENJENO — čitljiviji output
+        print(f"[{datetime.now():%H:%M:%S}] ✔ Ažurirane cene")
 
 
 # ============================================================
@@ -183,33 +166,21 @@ def registruj_rute(app):
 
     @app.route('/api/cene_uzivo')
     def api_cene_uzivo():
-
         return jsonify([
             {
                 'id': k.id,
                 'naziv': k.naziv,
                 'cena': k.trenutna_cena,
-                'smer': (
-                    1 if k.trenutna_cena > k.prethodna_cena
-                    else -1 if k.trenutna_cena < k.prethodna_cena
-                    else 0
-                )
+                'smer':
+                    1 if k.trenutna_cena > k.prethodna_cena else
+                    -1 if k.trenutna_cena < k.prethodna_cena else
+                    0
             }
             for k in Koktel.query.all()
         ])
 
-    @app.route('/transakcije')
-    def pregled_transakcija():
-
-        transakcije = Transakcija.query.order_by(
-            Transakcija.vremenska_oznaka.desc()
-        ).limit(50)
-
-        return render_template('pregled_transakcija.html', transakcije=transakcije)
-
     @app.route('/api/cene_sa_baznom')
     def cene_sa_baznom():
-
         return jsonify([
             {"id": k.id, "bazna": k.bazna_cena}
             for k in Koktel.query.all()
@@ -230,6 +201,7 @@ def registruj_rute(app):
             if koktel:
                 db.session.add(Transakcija(
                     koktel_id=koktel_id,
+                    koktel_ime=koktel.naziv,   # ★ STORE NAME
                     kolicina=kolicina,
                     broj_stola=broj_stola,
                     cena_pri_narudzbi=koktel.trenutna_cena
@@ -240,61 +212,51 @@ def registruj_rute(app):
 
         return render_template('unos_narudzbe.html', kokteli=kokteli)
 
-    @app.route('/dashboard')
-    def dashboard():
-        return render_template('dashboard.html', kokteli=Koktel.query.all())
-
-    @app.route('/api/istorija_cena/<int:kid>')
-    def api_istorija(kid):
-
-        ### OPTIMIZACIJA:
-        # Izbačeni nepotrebni atributi i skraćeno formatiranje.
-        return jsonify([
-            {
-                "vreme": h.vremenska_oznaka.strftime("%Y-%m-%d %H:%M:%S"),
-                "nova": h.nova_cena
-            }
-            for h in IstorijaCena.query.filter_by(koktel_id=kid)
-            .order_by(IstorijaCena.vremenska_oznaka)
-        ])
-
-    @app.route('/api/prodaja/<int:kid>')
-    def api_prodaja(kid):
-
-        podaci = db.session.query(
-            func.sum(Transakcija.kolicina),
-            func.strftime("%Y-%m-%d %H:%M", Transakcija.vremenska_oznaka)
-        ).filter(
-            Transakcija.koktel_id == kid
-        ).group_by(
-            func.strftime("%Y-%m-%d %H:%M", Transakcija.vremenska_oznaka)
+    @app.route('/transakcije')
+    def pregled_transakcija():
+        transakcije = Transakcija.query.order_by(
+            Transakcija.vremenska_oznaka.desc()
         ).all()
-
-        return jsonify([
-            {"vreme": v, "kolicina": k}
-            for k, v in podaci
-        ])
+        return render_template('pregled_transakcija.html', transakcije=transakcije)
 
 
 # ============================================================
 # 6. INICIJALIZACIJA BAZE
 # ============================================================
 
-### OČIŠĆENO:
-# Jednostavnija verzija bez duplog koda.
 def inicijalizuj_bazu():
-    """
-    Kreira tabele i dodaje početne koktele.
-    Limiti se automatski računaju, nije ih potrebno unositi ručno.
-    """
+
+    cocktails = {
+        "ADIOS MOTHERFUCKER": 666,
+        "BAHAMA MAMA": 630,
+        "BEAST": 690,
+        "BLACK SABATH": 630,
+        "BLUE FROG": 650,
+        "BLUE LAGOON": 610,
+        "COSMOPOLITAN": 580,
+        "CUBA LIBRE": 580,
+        "DEVILS ICE TEA": 690,
+        "HERO": 650,
+        "JAPANESE SLIPPER": 630,
+        "LA ICE TEA": 650,
+        "LONG ISLAND ICE TEA": 670,
+        "MAI TAI": 640,
+        "MARGARITA KOKTEL": 580,
+        "SEX ON THE BEACH": 630,
+        "SHOOTIRANJE": 666,
+        "STOPER": 666,
+        "TEQUILA SUNRISE": 630,
+        "VISKI SOUR": 630,
+    }
+
     db.create_all()
 
     if not Koktel.query.first():
-        db.session.add_all([
-            Koktel(naziv='Margarita', bazna_cena=10),
-            Koktel(naziv='Mojito', bazna_cena=9.5),
-            Koktel(naziv='Old Fashioned', bazna_cena=12),
-        ])
+        kokteli = [
+            Koktel(naziv=name, bazna_cena=price)
+            for name, price in cocktails.items()
+        ]
+        db.session.add_all(kokteli)
         db.session.commit()
         print("✔ Početni kokteli dodati")
 
@@ -304,7 +266,6 @@ def inicijalizuj_bazu():
 # ============================================================
 
 def podesi_scheduler(app):
-    """Registruje periodični APScheduler zadatak."""
     scheduler.add_job(
         id='AzuriranjeCenaJob',
         func=azuriraj_cene_koktela,

@@ -19,7 +19,7 @@
     </script>
 </head>
 <body>
-    <h1>Pregled Poslednjih 50 Transakcija (UZIVO)</h1>
+    <h1>Pregled Transakcija (UZIVO)</h1>
     <p>Stranica se automatski osvezava svakih 5 sekundi.</p>
 
     <table>
@@ -27,7 +27,8 @@
             <tr>
                 <th>ID</th>
                 <th>Vreme (UTC)</th>
-                <th>ID Koktela</th>
+                <th>Koktel ID</th>
+                <th>Koktel Ime</th> <!-- ★ NEW COLUMN -->
                 <th>Kolicina</th>
                 <th>Broj Stola</th>
                 <th>Cena pri narudzbi (RSD)</th>
@@ -39,6 +40,7 @@
                 <td>{{ transakcija.id }}</td>
                 <td>{{ transakcija.vremenska_oznaka }}</td>
                 <td>{{ transakcija.koktel_id }}</td>
+                <td>{{ transakcija.koktel_ime }}</td> <!-- ★ NEW FIELD -->
                 <td>{{ transakcija.kolicina }}</td>
                 <td>{{ transakcija.broj_stola }}</td>
                 <td>{{ "%.2f" | format(transakcija.cena_pri_narudzbi) }}</td>
