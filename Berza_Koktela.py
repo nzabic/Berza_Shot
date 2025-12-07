@@ -160,6 +160,10 @@ def azuriraj_cene_koktela(app):
 
 def registruj_rute(app):
 
+    @app.route('/')
+    def index():
+        return render_template('index.html')
+
     @app.route('/tv')
     def tv_ekran():
         return render_template('tv_ekran.html')
@@ -219,6 +223,10 @@ def registruj_rute(app):
         ).all()
         return render_template('pregled_transakcija.html', transakcije=transakcije)
 
+    @app.route('/dashboard')
+    def dashboard():
+        kokteli = Koktel.query.all()
+        return render_template('dashboard.html', kokteli=kokteli)
 
 # ============================================================
 # 6. INICIJALIZACIJA BAZE

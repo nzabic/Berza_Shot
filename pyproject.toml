@@ -1,0 +1,10 @@
+[project]
+name = "berza-shot"
+version = "0.1.0"
+description = "Cocktail dynamic pricing system"
+requires-python = ">=3.8"
+dependencies = [
+    "Flask>=2.3.0",
+    "Flask-SQLAlchemy>=3.0.0",
+    "Flask-APScheduler>=1.12.0",
+]

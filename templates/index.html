@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <title>Berza Koktela</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #aaa;
+            margin-bottom: 40px;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .nav-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .nav-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .nav-card .title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .nav-card .desc {
+            font-size: 0.85rem;
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Berza Koktela</h1>
+        <p class="subtitle">Dinamicko formiranje cena koktela</p>
+
+        <div class="nav-grid">
+            <a href="/unos_narudzbe" class="nav-card">
+                <div class="icon">+</div>
+                <div class="title">Unos narudzbe</div>
+                <div class="desc">Dodaj novu narudzbu koktela</div>
+            </a>
+
+            <a href="/tv" class="nav-card">
+                <div class="icon">TV</div>
+                <div class="title">TV ekran</div>
+                <div class="desc">Prikaz cena uzivo</div>
+            </a>
+
+            <a href="/transakcije" class="nav-card">
+                <div class="icon">#</div>
+                <div class="title">Transakcije</div>
+                <div class="desc">Pregled svih narudzbi</div>
+            </a>
+
+            <a href="/dashboard" class="nav-card">
+                <div class="icon">~</div>
+                <div class="title">Dashboard</div>
+                <div class="desc">Grafici i statistika</div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
