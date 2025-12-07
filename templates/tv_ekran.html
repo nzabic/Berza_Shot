@@ -1,179 +1,251 @@
 ﻿<!DOCTYPE html>
 <html lang="sr">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Berza Koktela - LIVE</title>
 
     <style>
-        body {
-            background: #111;
-            color: white;
-            font-family: Arial, sans-serif;
-            padding: 10px 20px;
-            margin: 0;
-        }
+      body {
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+        padding: 10px 20px;
+        margin: 0;
+      }
 
-        .title-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 25px;
-            margin-top: 10px;
-            margin-bottom: 20px;
-        }
+      .title-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 25px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+      }
 
-        .logo {
-            height: 60px;
-            width: auto;
-            opacity: 0.9;
-        }
+      .logo {
+        height: 60px;
+        width: auto;
+        opacity: 0.9;
+      }
 
-        h1 {
-            text-align: center;
-            font-size: 2.4em;
-            margin: 0;
-            color: #4CAF50;
-            white-space: nowrap;
-        }
+      h1 {
+        text-align: center;
+        font-size: 2.4em;
+        margin: 0;
+        color: #4caf50;
+        white-space: nowrap;
+      }
 
-        #lista {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-        }
+      #lista {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
 
-        .koktel-red {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+      .koktel-red {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
 
-            background: #1c1c1c;
-            padding: 12px 14px;
-            margin: 8px 0;
-            border-radius: 10px;
+        background: #1c1c1c;
+        padding: 12px 14px;
+        margin: 8px 0;
+        border-radius: 10px;
 
-            width: 48%;
-            height: 80px;
-            box-sizing: border-box;
-        }
+        width: 48%;
+        height: 80px;
+        box-sizing: border-box;
+      }
 
-        .ime {
-            width: 55%;
-            font-size: 1.65em;
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+      .ime {
+        width: 55%;
+        font-size: 1.65em;
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-        /* PRICE + ARROW ARE NOW FULLY CENTERED */
-        .cena {
-            width: 40%;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;   /* ★ Align arrow vertically with price */
-            gap: 8px;
+      /* PRICE + ARROW ARE NOW FULLY CENTERED */
+      .cena {
+        width: 40%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center; /* ★ Align arrow vertically with price */
+        gap: 8px;
 
-            font-size: 2.6em;
-            font-weight: bold;
-        }
+        font-size: 2.6em;
+        font-weight: bold;
+      }
 
-        .indikator {
-            font-size: 1.4em;
-            line-height: 1;       /* ★ Prevent downward shift */
-            position: relative;
-            top: -2px;            /* ★ Fine-tuned alignment */
-        }
+      .indikator {
+        font-size: 1.4em;
+        line-height: 1; /* ★ Prevent downward shift */
+        position: relative;
+        top: -2px; /* ★ Fine-tuned alignment */
+      }
 
-        .gore { color: #4CAF50; }
-        .dole { color: #ff4d4d; }
-        .stabilno { color: #ccc; }
-
+      .gore {
+        color: #4caf50;
+      }
+      .dole {
+        color: #ff4d4d;
+      }
+      .stabilno {
+        color: #ccc;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
+    <div class="title-row">
+      <img src="/static/shootiranje.png" class="logo" />
+      <h1>Berza Koktela – LIVE</h1>
+      <img src="/static/shootiranje.png" class="logo" />
+    </div>
 
-<div class="title-row">
-    <img src="/static/shootiranje.png" class="logo">
-    <h1>Berza Koktela – LIVE</h1>
-    <img src="/static/shootiranje.png" class="logo">
-</div>
+    <div id="lista"></div>
 
-<div id="lista"></div>
+    <video
+      id="clipVideo"
+      muted
+      autoplay
+      playsinline
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        background: #000;
+      "
+    ></video>
 
-<video id="clipVideo" muted autoplay playsinline style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:#000;"></video>
+    <div
+      id="promoTicker"
+      style="
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(90deg, #ff6600, #ff3300);
+        color: #fff;
+        padding: 18px;
+        font-size: 1.8em;
+        text-align: center;
+        z-index: 9998;
+        font-weight: bold;
+      "
+    >
+      PROMO: MAI TAI po PROMO ceni jos <span id="countdown">5:00</span>
+    </div>
 
-<script>
-// Clip playback
-let clipPlaying = false;
-let playCount = 0;
-const MAX_PLAYS = 3;
+    <script>
+      // Clip playback
+      let clipPlaying = false;
+      let playCount = 0;
+      const MAX_PLAYS = 3;
+      const PROMO_SECONDS = 300; // 5 minutes
+      const REPLAY_INTERVAL = 20; // replay video every 20 seconds during promo
 
-async function checkClip() {
-    if (clipPlaying) return;
+      async function checkClip() {
+        if (clipPlaying) return;
 
-    const res = await fetch("/api/check_clip").then(r => r.json());
-    if (res.play && playCount < MAX_PLAYS) {
-        clipPlaying = true;
-        const video = document.getElementById("clipVideo");
-        video.src = "/static/" + res.clip;
-        video.style.display = "block";
-        video.play();
+        const res = await fetch("/api/check_clip").then((r) => r.json());
+        if (res.play && playCount < MAX_PLAYS) {
+          clipPlaying = true;
+          const video = document.getElementById("clipVideo");
+          video.src = "/static/" + res.clip;
+          video.style.display = "block";
+          video.play();
 
-        video.onended = () => {
+          video.onended = () => {
             playCount++;
             if (playCount < MAX_PLAYS) {
-                video.play();
+              video.play();
             } else {
-                video.style.display = "none";
-                clipPlaying = false;
+              video.style.display = "none";
+              clipPlaying = false;
+              startPromoCountdown();
             }
-        };
-    }
-}
+          };
+        }
+      }
 
-setInterval(checkClip, 2000);
+      setInterval(checkClip, 2000);
 
-async function ucitajSve() {
+      function startPromoCountdown() {
+        let remaining = PROMO_SECONDS;
+        const ticker = document.getElementById("promoTicker");
+        const countdownEl = document.getElementById("countdown");
+        const video = document.getElementById("clipVideo");
 
-    const lista = document.getElementById("lista");
-    lista.innerHTML = "";
+        ticker.style.display = "block";
 
-    const kokteli = await fetch("/api/cene_uzivo").then(r => r.json());
+        // Replay video periodically
+        const replayInterval = setInterval(() => {
+          if (remaining > 0) {
+            video.style.display = "block";
+            video.currentTime = 0;
+            video.play();
+            video.onended = () => {
+              video.style.display = "none";
+            };
+          }
+        }, REPLAY_INTERVAL * 1000);
 
-    for (const k of kokteli) {
+        // Countdown timer
+        const countdownInterval = setInterval(() => {
+          remaining--;
+          const mins = Math.floor(remaining / 60);
+          const secs = remaining % 60;
+          countdownEl.textContent = `${mins}:${secs
+            .toString()
+            .padStart(2, "0")}`;
 
-        const red = document.createElement("div");
-        red.className = "koktel-red";
+          if (remaining <= 0) {
+            clearInterval(countdownInterval);
+            clearInterval(replayInterval);
+            ticker.style.display = "none";
+            video.style.display = "none";
+          }
+        }, 1000);
+      }
 
-        const arrow =
-            k.smer === 1 ? "↗" :
-            k.smer === -1 ? "↘" :
-            "—";
+      async function ucitajSve() {
+        const lista = document.getElementById("lista");
+        lista.innerHTML = "";
 
-        red.innerHTML = `
+        const kokteli = await fetch("/api/cene_uzivo").then((r) => r.json());
+
+        for (const k of kokteli) {
+          const red = document.createElement("div");
+          red.className = "koktel-red";
+
+          const arrow = k.smer === 1 ? "↗" : k.smer === -1 ? "↘" : "—";
+
+          red.innerHTML = `
             <div class="ime">${k.naziv}</div>
 
             <div class="cena">
                 ${k.cena.toFixed(2)}
                 <span class="indikator ${
-                    k.smer === 1 ? "gore" :
-                    k.smer === -1 ? "dole" :
-                    "stabilno"
+                  k.smer === 1 ? "gore" : k.smer === -1 ? "dole" : "stabilno"
                 }">
                     ${arrow}
                 </span>
             </div>
         `;
 
-        lista.appendChild(red);
-    }
-}
+          lista.appendChild(red);
+        }
+      }
 
-ucitajSve();
-setInterval(ucitajSve, 8000);
-</script>
-
-</body>
+      ucitajSve();
+      setInterval(ucitajSve, 8000);
+    </script>
+  </body>
 </html>

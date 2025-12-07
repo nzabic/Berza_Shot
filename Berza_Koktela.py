@@ -11,7 +11,7 @@ from sqlalchemy import func
 CLIP_FILE = "tramp_mai_tai.mp4"           # filename in static/ folder
 CLIP_DELAY_SECONDS = 105         # 1:45 after server start
 CLIP_PRICE_THRESHOLD = 550       # Blue Frog price threshold
-CLIP_COCKTAIL_NAME = "BLUE FROG"
+CLIP_COCKTAIL_NAME = "MAI TAI"
 
 # Runtime state
 SERVER_START_TIME = None
