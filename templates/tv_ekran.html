@@ -140,22 +140,16 @@
         font-weight: bold;
       "
     >
-      PROMO: MAI TAI po PROMO ceni jos <span id="countdown">5:00</span>
     </div>
 
     <script>
-      // Clip playback
       let clipPlaying = false;
-      let playCount = 0;
-      const MAX_PLAYS = 3;
-      const PROMO_SECONDS = 300; // 5 minutes
-      const REPLAY_INTERVAL = 20; // replay video every 20 seconds during promo
 
       async function checkClip() {
         if (clipPlaying) return;
 
         const res = await fetch("/api/check_clip").then((r) => r.json());
-        if (res.play && playCount < MAX_PLAYS) {
+        if (res.play) {
           clipPlaying = true;
           const video = document.getElementById("clipVideo");
           video.src = "/static/" + res.clip;
@@ -163,31 +157,28 @@
           video.play();
 
           video.onended = () => {
-            playCount++;
-            if (playCount < MAX_PLAYS) {
-              video.play();
-            } else {
-              video.style.display = "none";
-              clipPlaying = false;
-              startPromoCountdown();
-            }
+            video.style.display = "none";
+            // Zapocinjemo promociju jednog koktela
+            startPromoCountdown(res.name, res.clip, res.price, res.REPLAY_INTERVAL, res.PROMO_SECONDS);
           };
         }
       }
 
       setInterval(checkClip, 2000);
 
-      function startPromoCountdown() {
-        let remaining = PROMO_SECONDS;
+      function startPromoCountdown(cocktailName, videoFile, promoPrice, interval, promoDuration) {
+        let remaining = promoDuration;
         const ticker = document.getElementById("promoTicker");
-        const countdownEl = document.getElementById("countdown");
         const video = document.getElementById("clipVideo");
 
+        // Update ticker text dynamically for the current cocktail
+        ticker.innerHTML = `${cocktailName} po promo ceni od ${promoPrice}din još <span id="countdown">${remaining}</span>`;
         ticker.style.display = "block";
 
-        // Replay video periodically
+        // Periodically show the video again during the 5-minute promo
         const replayInterval = setInterval(() => {
           if (remaining > 0) {
+            video.src = "/static/" + videoFile;
             video.style.display = "block";
             video.currentTime = 0;
             video.play();
@@ -195,55 +186,52 @@
               video.style.display = "none";
             };
           }
-        }, REPLAY_INTERVAL * 1000);
+        }, interval * 1000);
 
-        // Countdown timer
-        const countdownInterval = setInterval(() => {
+        // Main countdown timer
+        const countdownInterval = setInterval(async () => {
           remaining--;
           const mins = Math.floor(remaining / 60);
           const secs = remaining % 60;
-          countdownEl.textContent = `${mins}:${secs
-            .toString()
-            .padStart(2, "0")}`;
+
+          const countdownEl = document.getElementById("countdown");
+          if (countdownEl) {
+            countdownEl.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+          }
 
           if (remaining <= 0) {
             clearInterval(countdownInterval);
             clearInterval(replayInterval);
             ticker.style.display = "none";
             video.style.display = "none";
+            clipPlaying = false;
+
+            // Move to next cocktail and trigger 15-minute wait on server
+            await fetch("/api/next_cocktail");
           }
         }, 1000);
       }
 
+      // Your existing ucitajSve() function remains here...
       async function ucitajSve() {
         const lista = document.getElementById("lista");
         lista.innerHTML = "";
-
         const kokteli = await fetch("/api/cene_uzivo").then((r) => r.json());
-
         for (const k of kokteli) {
           const red = document.createElement("div");
           red.className = "koktel-red";
-
           const arrow = k.smer === 1 ? "↗" : k.smer === -1 ? "↘" : "—";
-
           red.innerHTML = `
             <div class="ime">${k.naziv}</div>
-
             <div class="cena">
                 ${k.cena.toFixed(2)}
-                <span class="indikator ${
-                  k.smer === 1 ? "gore" : k.smer === -1 ? "dole" : "stabilno"
-                }">
+                <span class="indikator ${k.smer === 1 ? "gore" : k.smer === -1 ? "dole" : "stabilno"}">
                     ${arrow}
                 </span>
-            </div>
-        `;
-
+            </div>`;
           lista.appendChild(red);
         }
       }
-
       ucitajSve();
       setInterval(ucitajSve, 8000);
     </script>

@@ -6,17 +6,24 @@ from sqlalchemy import func
 
 
 # ============================================================
-# CLIP CONFIG - change these as needed
+# PROMO VIDEOS VARIABLES
 # ============================================================
-CLIP_FILE = "tramp_mai_tai.mp4"           # filename in static/ folder
+# Menjati po potrebi
 CLIP_DELAY_SECONDS = 105         # 1:45 after server start
-CLIP_PRICE_THRESHOLD = 550       # Blue Frog price threshold
-CLIP_COCKTAIL_NAME = "MAI TAI"
+PAUSE_BETWEEN_PROMO = 2          # Pauza izmedju dve promocija (u minutima)
+PROMO_SECONDS = 60               # Trajanje promocije (u sekundama)
+REPLAY_INTERVAL = 20             # Na koliko je video ponavlja u toku jedne promocije (u sekundama)
 
-# Runtime state
+PROMO_KOKTELI = [
+                    {"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 500, "video": "tramp_mai_tai.mp4"},
+                    {"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 400, "video": "devils.mp4"},
+                    {"CLIP_COCKTAIL_NAME": "BLUE FROG", "cena": 450, "video": "blue_frog_naruto.mp4"},
+                ]
+# Ne menjati
+current_index = 0
+last_cycle_end_time = None
 SERVER_START_TIME = None
 clip_triggered = False
-
 
 # ============================================================
 # 1. KONFIGURACIJA APLIKACIJE
@@ -243,32 +250,59 @@ def registruj_rute(app):
 
     @app.route('/api/check_clip')
     def check_clip():
-        global clip_triggered
+        global current_index, last_cycle_end_time, clip_triggered
 
-        # Don't trigger again if already played
+        elapsed_since_start = (datetime.utcnow() - SERVER_START_TIME).total_seconds()
+        if elapsed_since_start < CLIP_DELAY_SECONDS:
+            return jsonify({"play": False})
+
+        config = PROMO_KOKTELI[current_index]
+
         if clip_triggered:
-            return jsonify({"play": False, "clip": CLIP_FILE})
+            return jsonify({
+                "play": True,
+                "clip": config["video"],
+                "name": config["CLIP_COCKTAIL_NAME"],
+                "price": config["cena"],
+                "REPLAY_INTERVAL": REPLAY_INTERVAL,
+                "PROMO_SECONDS": PROMO_SECONDS
+            })
 
-        # Check time condition
-        elapsed = (datetime.utcnow() - SERVER_START_TIME).total_seconds()
-        if elapsed < CLIP_DELAY_SECONDS:
-            return jsonify({"play": False, "clip": CLIP_FILE})
+        # Proveravamo pauzu izmedju promocija
+        if last_cycle_end_time:
+            # print("\n\n\n last_cycle_end_time \n\n\n")
+            #
+            # print("datetime.utcnow()", datetime.utcnow())
+            # print("last_cycle_end_time", last_cycle_end_time),
+            # print("timedelta", timedelta(minutes=PAUSE_BETWEEN_PROMO))
+            if datetime.utcnow() - last_cycle_end_time <= timedelta(minutes=PAUSE_BETWEEN_PROMO):
+                return jsonify({"play": False})
 
-        # Check price condition
-        blue_frog = Koktel.query.filter_by(naziv=CLIP_COCKTAIL_NAME).first()
-        if not blue_frog or blue_frog.trenutna_cena <= CLIP_PRICE_THRESHOLD:
-            return jsonify({"play": False, "clip": CLIP_FILE})
+        # Check price for the specific cocktail currently in rotation
+        cocktail_db = Koktel.query.filter_by(naziv=config["CLIP_COCKTAIL_NAME"]).first()
 
-        # All conditions met - trigger once
-        clip_triggered = True
-        return jsonify({"play": True, "clip": CLIP_FILE})
+        if cocktail_db and cocktail_db.trenutna_cena >= config["cena"]:
 
-    @app.route('/api/reset_clip')
-    def reset_clip():
-        global clip_triggered, SERVER_START_TIME
+            print("Send request to play video: ", config["video"])
+            clip_triggered = True
+            return jsonify({
+                "play": True,
+                "clip": config["video"],
+                "name": config["CLIP_COCKTAIL_NAME"],
+                "price": config["cena"],
+                "REPLAY_INTERVAL": REPLAY_INTERVAL,
+                "PROMO_SECONDS": PROMO_SECONDS
+            })
+
+        return jsonify({"play": False})
+
+    @app.route('/api/next_cocktail')
+    def next_cocktail():
+        global current_index, clip_triggered, last_cycle_end_time
         clip_triggered = False
-        SERVER_START_TIME = datetime.utcnow()
-        return jsonify({"status": "reset", "message": "Clip reset, timer restarted"})
+        last_cycle_end_time = datetime.utcnow()  # Zapocinjemo pauzu
+        current_index = (current_index + 1) % len(PROMO_KOKTELI) # Prolazimo kroz listu koktela
+        return jsonify({"status": "moved to next"})
 
 # ============================================================
 # 6. INICIJALIZACIJA BAZE
