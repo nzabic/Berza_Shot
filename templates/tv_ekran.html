@@ -1,5 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="sr">
+<<<<<<< Updated upstream
   <head>
     <meta charset="UTF-8" />
     <title>Berza Koktela - LIVE</title>
@@ -103,6 +104,31 @@
       <h1>Berza Koktela – LIVE</h1>
       <img src="/static/shootiranje.png" class="logo" />
     </div>
+=======
+<head>
+<meta charset="UTF-8">
+<title>Berza Koktela - LIVE</title>
+<style>
+body { background:#111; color:white; font-family:Arial,sans-serif; margin:0; padding:10px 20px; }
+.title-row { display:flex; justify-content:center; align-items:center; gap:25px; margin:10px 0 20px; }
+.logo { height:60px; opacity:0.9; }
+h1 { font-size:2.4em; color:#4CAF50; text-align:center; margin:0; }
+#lista { display:flex; flex-wrap:wrap; justify-content:space-between; }
+.koktel-red { display:flex; justify-content:space-between; align-items:center; background:#1c1c1c; padding:12px 14px; margin:8px 0; border-radius:10px; width:48%; height:80px; box-sizing:border-box; }
+.ime { width:55%; font-size:1.65em; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cena { width:40%; display:flex; justify-content:flex-end; align-items:center; gap:8px; font-size:2.6em; font-weight:bold; }
+.indikator { font-size:1.4em; line-height:1; position:relative; top:-2px; }
+.gore { color:#4CAF50; } .dole { color:#ff4d4d; } .stabilno { color:#ccc; }
+
+/* Promo overlay */
+#promo-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:9999; text-align:center; color:white; }
+#promo-overlay video { width:100%; height:100%; object-fit:cover; }
+#promo-title { position:absolute; top:10%; width:100%; font-size:4em; font-weight:bold; text-shadow:2px 2px 4px black; }
+#promo-timer { position:absolute; bottom:10%; width:100%; font-size:3em; text-shadow:2px 2px 4px black; }
+</style>
+</head>
+<body>
+>>>>>>> Stashed changes
 
     <div id="lista"></div>
 
@@ -123,6 +149,7 @@
       "
     ></video>
 
+<<<<<<< Updated upstream
     <div
       id="promoTicker"
       style="
@@ -236,4 +263,58 @@
       setInterval(ucitajSve, 8000);
     </script>
   </body>
+=======
+<div id="promo-overlay">
+    <video id="promo-video" autoplay muted></video>
+    <div id="promo-title">AKCIJA – Blue Frog</div>
+    <div id="promo-timer"></div>
+</div>
+
+<script>
+async function ucitajSve() {
+    const lista = document.getElementById("lista"); lista.innerHTML = "";
+    try {
+        const kokteli = await fetch("/api/cene_uzivo").then(r => r.json());
+        for(const k of kokteli){
+            const red = document.createElement("div"); red.className="koktel-red";
+            const arrow = k.smer===1?"↗":k.smer===-1?"↘":"—";
+            red.innerHTML=`<div class="ime">${k.naziv}</div>
+            <div class="cena">${k.cena.toFixed(2)}<span class="indikator ${k.smer===1?"gore":k.smer===-1?"dole":"stabilno"}">${arrow}</span></div>`;
+            lista.appendChild(red);
+        }
+    } catch(e){ console.error(e); }
+}
+
+let promoInterval = null;
+async function proveriPromo(){
+    const overlay = document.getElementById("promo-overlay");
+    const video = document.getElementById("promo-video");
+    const timer = document.getElementById("promo-timer");
+    try{
+        const r = await fetch("/api/promo_status").then(r=>r.json());
+        if(r.aktivna){
+            overlay.style.display="block";
+            video.src=r.video;
+            video.currentTime=0;
+            video.play().catch(()=>{});
+            let t=r.preostalo;
+            timer.innerText=t+"s";
+            if(promoInterval) clearInterval(promoInterval);
+            promoInterval=setInterval(()=>{
+                t--;
+                timer.innerText=t+"s";
+                if(t<=0){ clearInterval(promoInterval); promoInterval=null; overlay.style.display="none"; video.pause(); }
+            },1000);
+        } else {
+            overlay.style.display="none";
+            video.pause();
+        }
+    } catch(e){ console.error(e); }
+}
+
+ucitajSve(); setInterval(ucitajSve,8000); setInterval(proveriPromo,1000);
+</script>
+
+</body>
+>>>>>>> Stashed changes
 </html>

@@ -4,8 +4,8 @@ from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
-
 # ============================================================
+<<<<<<< Updated upstream
 # PROMO VIDEOS VARIABLES
 # ============================================================
 # Menjati po potrebi
@@ -27,6 +27,9 @@ clip_triggered = False
 
 # ============================================================
 # 1. KONFIGURACIJA APLIKACIJE
+=======
+# 1. KONFIGURACIJA
+>>>>>>> Stashed changes
 # ============================================================
 
 class Config:
@@ -34,19 +37,19 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SCHEDULER_API_ENABLED = True
 
-
 db = SQLAlchemy()
 scheduler = APScheduler()
 
+# Promo global state
+promo_aktivna = False
+promo_kraj = None
 
 def kreiraj_aplikaciju():
     app = Flask(__name__)
     app.config.from_object(Config)
-
     db.init_app(app)
     scheduler.init_app(app)
     return app
-
 
 # ============================================================
 # 2. MODELI
@@ -56,18 +59,13 @@ class Koktel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     naziv = db.Column(db.String(80), unique=True, nullable=False)
     bazna_cena = db.Column(db.Float, nullable=False)
-
     trenutna_cena = db.Column(db.Float, nullable=False)
     prethodna_cena = db.Column(db.Float, nullable=False)
-
     minimalna_cena = db.Column(db.Float, nullable=False)
     maksimalna_cena = db.Column(db.Float, nullable=False)
 
     transakcije = db.relationship(
-        'Transakcija',
-        backref='koktel',
-        lazy=True,
-        cascade="all, delete-orphan"
+        'Transakcija', backref='koktel', lazy=True, cascade="all, delete-orphan"
     )
 
     def postavi_limite(self):
@@ -86,13 +84,9 @@ class Koktel(db.Model):
 
 
 class Transakcija(db.Model):
-    """Model za svaku pojedinačnu prodaju koktela."""
-
     id = db.Column(db.Integer, primary_key=True)
     koktel_id = db.Column(db.Integer, db.ForeignKey('koktel.id'), nullable=False)
-
-    koktel_ime = db.Column(db.String(80), nullable=False)  # ★ ADDED FIELD
-
+    koktel_ime = db.Column(db.String(80), nullable=False)
     kolicina = db.Column(db.Integer, nullable=False)
     broj_stola = db.Column(db.String(10), nullable=False)
     cena_pri_narudzbi = db.Column(db.Float, nullable=False)
@@ -122,11 +116,7 @@ def racunaj_novu_cenu(stara, prodato, min_cena, max_cena):
 
 def validiraj_unos(request):
     try:
-        return (
-            int(request.form["koktel_id"]),
-            int(request.form["kolicina"]),
-            request.form["broj_stola"].strip()
-        )
+        return int(request.form["koktel_id"]), int(request.form["kolicina"]), request.form["broj_stola"].strip()
     except:
         return None
 
@@ -137,29 +127,16 @@ def validiraj_unos(request):
 
 def azuriraj_cene_koktela(app):
     with app.app_context():
-
         cutoff = datetime.utcnow() - timedelta(seconds=30)
-
-        prodaja = {
-            kid: ukupno
-            for kid, ukupno in db.session.query(
-                Transakcija.koktel_id,
-                func.sum(Transakcija.kolicina)
-            ).filter(
-                Transakcija.vremenska_oznaka >= cutoff
-            ).group_by(Transakcija.koktel_id)
-        }
+        prodaja = {kid: ukupno for kid, ukupno in db.session.query(
+            Transakcija.koktel_id, func.sum(Transakcija.kolicina)
+        ).filter(
+            Transakcija.vremenska_oznaka >= cutoff
+        ).group_by(Transakcija.koktel_id)}
 
         for k in Koktel.query.all():
             stara = k.trenutna_cena
-
-            nova = racunaj_novu_cenu(
-                stara,
-                prodaja.get(k.id, 0),
-                k.minimalna_cena,
-                k.maksimalna_cena
-            )
-
+            nova = racunaj_novu_cenu(stara, prodaja.get(k.id, 0), k.minimalna_cena, k.maksimalna_cena)
             if nova != stara:
                 db.session.add(IstorijaCena(
                     koktel_id=k.id,
@@ -167,9 +144,7 @@ def azuriraj_cene_koktela(app):
                     nova_cena=nova,
                     razlog=f"{prodaja.get(k.id, 0)} prodato"
                 ))
-
             k.postavi_novu_cenu(nova)
-
         db.session.commit()
         print(f"[{datetime.now():%H:%M:%S}] ✔ Ažurirane cene")
 
@@ -190,59 +165,44 @@ def registruj_rute(app):
 
     @app.route('/api/cene_uzivo')
     def api_cene_uzivo():
-        return jsonify([
-            {
-                'id': k.id,
-                'naziv': k.naziv,
-                'cena': k.trenutna_cena,
-                'smer':
-                    1 if k.trenutna_cena > k.prethodna_cena else
-                    -1 if k.trenutna_cena < k.prethodna_cena else
-                    0
-            }
-            for k in Koktel.query.all()
-        ])
+        return jsonify([{
+            'id': k.id,
+            'naziv': k.naziv,
+            'cena': k.trenutna_cena,
+            'smer': 1 if k.trenutna_cena > k.prethodna_cena else -1 if k.trenutna_cena < k.prethodna_cena else 0
+        } for k in Koktel.query.all()])
 
     @app.route('/api/cene_sa_baznom')
     def cene_sa_baznom():
-        return jsonify([
-            {"id": k.id, "bazna": k.bazna_cena}
-            for k in Koktel.query.all()
-        ])
+        return jsonify([{"id": k.id, "bazna": k.bazna_cena} for k in Koktel.query.all()])
 
     @app.route('/unos_narudzbe', methods=['GET', 'POST'])
     def unos_narudzbe():
         kokteli = Koktel.query.all()
-
         if request.method == 'POST':
             podaci = validiraj_unos(request)
             if not podaci:
                 return redirect(url_for('unos_narudzbe'))
-
             koktel_id, kolicina, broj_stola = podaci
             koktel = Koktel.query.get(koktel_id)
-
             if koktel:
                 db.session.add(Transakcija(
                     koktel_id=koktel_id,
-                    koktel_ime=koktel.naziv,   # ★ STORE NAME
+                    koktel_ime=koktel.naziv,
                     kolicina=kolicina,
                     broj_stola=broj_stola,
                     cena_pri_narudzbi=koktel.trenutna_cena
                 ))
                 db.session.commit()
-
                 return redirect(url_for('unos_narudzbe'))
-
         return render_template('unos_narudzbe.html', kokteli=kokteli)
 
     @app.route('/transakcije')
     def pregled_transakcija():
-        transakcije = Transakcija.query.order_by(
-            Transakcija.vremenska_oznaka.desc()
-        ).all()
+        transakcije = Transakcija.query.order_by(Transakcija.vremenska_oznaka.desc()).all()
         return render_template('pregled_transakcija.html', transakcije=transakcije)
 
+<<<<<<< Updated upstream
     @app.route('/dashboard')
     def dashboard():
         kokteli = Koktel.query.all()
@@ -303,50 +263,59 @@ def registruj_rute(app):
         last_cycle_end_time = datetime.utcnow()  # Zapocinjemo pauzu
         current_index = (current_index + 1) % len(PROMO_KOKTELI) # Prolazimo kroz listu koktela
         return jsonify({"status": "moved to next"})
+=======
+    # Promo status endpoint
+    @app.route('/api/promo_status')
+    def promo_status():
+        global promo_aktivna, promo_kraj
+        if promo_aktivna and promo_kraj and datetime.utcnow() < promo_kraj:
+            remaining = int((promo_kraj - datetime.utcnow()).total_seconds())
+            return jsonify({
+                "aktivna": True,
+                "preostalo": remaining,
+                "video": "/static/blue_frog_naruto.mp4"
+            })
+        return jsonify({"aktivna": False})
+
+>>>>>>> Stashed changes
 
 # ============================================================
 # 6. INICIJALIZACIJA BAZE
 # ============================================================
 
 def inicijalizuj_bazu():
-
     cocktails = {
-        "ADIOS MOTHERFUCKER": 666,
-        "BAHAMA MAMA": 630,
-        "BEAST": 690,
-        "BLACK SABATH": 630,
-        "BLUE FROG": 650,
-        "BLUE LAGOON": 610,
-        "COSMOPOLITAN": 580,
-        "CUBA LIBRE": 580,
-        "DEVILS ICE TEA": 690,
-        "HERO": 650,
-        "JAPANESE SLIPPER": 630,
-        "LA ICE TEA": 650,
-        "LONG ISLAND ICE TEA": 670,
-        "MAI TAI": 640,
-        "MARGARITA KOKTEL": 580,
-        "SEX ON THE BEACH": 630,
-        "SHOOTIRANJE": 666,
-        "STOPER": 666,
-        "TEQUILA SUNRISE": 630,
-        "VISKI SOUR": 630,
+        "ADIOS MOTHERFUCKER": 666, "BAHAMA MAMA": 630, "BEAST": 690, "BLACK SABATH": 630,
+        "BLUE FROG": 650, "BLUE LAGOON": 610, "COSMOPOLITAN": 580, "CUBA LIBRE": 580,
+        "DEVILS ICE TEA": 690, "HERO": 650, "JAPANESE SLIPPER": 630, "LA ICE TEA": 650,
+        "LONG ISLAND ICE TEA": 670, "MAI TAI": 640, "MARGARITA KOKTEL": 580, "SEX ON THE BEACH": 630,
+        "SHOOTIRANJE": 666, "STOPER": 666, "TEQUILA SUNRISE": 630, "VISKI SOUR": 630
     }
-
     db.create_all()
-
     if not Koktel.query.first():
-        kokteli = [
-            Koktel(naziv=name, bazna_cena=price)
-            for name, price in cocktails.items()
-        ]
-        db.session.add_all(kokteli)
+        db.session.add_all([Koktel(naziv=n, bazna_cena=p) for n, p in cocktails.items()])
         db.session.commit()
         print("✔ Početni kokteli dodati")
 
 
 # ============================================================
-# 7. SCHEDULER
+# 7. PROMO START
+# ============================================================
+
+def startuj_promo(app):
+    global promo_aktivna, promo_kraj
+    with app.app_context():
+        blue_frog = Koktel.query.filter_by(naziv="BLUE FROG").first()
+        if blue_frog and blue_frog.trenutna_cena > 600:
+            promo_aktivna = True
+            promo_kraj = datetime.utcnow() + timedelta(seconds=30)
+            print("🎥 Promo STARTED")
+        else:
+            print("❌ Promo NOT started — Blue Frog price <= 600")
+
+
+# ============================================================
+# 8. SCHEDULER
 # ============================================================
 
 def podesi_scheduler(app):
@@ -359,11 +328,18 @@ def podesi_scheduler(app):
         max_instances=1,
         coalesce=True
     )
+    scheduler.add_job(
+        id='StartPromo',
+        func=startuj_promo,
+        args=[app],
+        trigger='date',
+        run_date=datetime.utcnow() + timedelta(minutes=2)
+    )
     scheduler.start()
 
 
 # ============================================================
-# 8. MAIN
+# 9. MAIN
 # ============================================================
 
 def main():
@@ -372,12 +348,9 @@ def main():
 
     app = kreiraj_aplikaciju()
     registruj_rute(app)
-
     with app.app_context():
         inicijalizuj_bazu()
-
     podesi_scheduler(app)
-
     app.run(debug=True, use_reloader=False)
 
 
