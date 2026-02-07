@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="sr">
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   <head>
     <meta charset="UTF-8" />
     <title>Berza Koktela - LIVE</title>
@@ -120,6 +121,23 @@ h1 { font-size:2.4em; color:#4CAF50; text-align:center; margin:0; }
 .indikator { font-size:1.4em; line-height:1; position:relative; top:-2px; }
 .gore { color:#4CAF50; } .dole { color:#ff4d4d; } .stabilno { color:#ccc; }
 
+=======
+<head>
+<meta charset="UTF-8">
+<title>Berza Koktela - LIVE</title>
+<style>
+body { background:#111; color:white; font-family:Arial,sans-serif; margin:0; padding:10px 20px; }
+.title-row { display:flex; justify-content:center; align-items:center; gap:25px; margin:10px 0 20px; }
+.logo { height:60px; opacity:0.9; }
+h1 { font-size:2.4em; color:#4CAF50; text-align:center; margin:0; }
+#lista { display:flex; flex-wrap:wrap; justify-content:space-between; }
+.koktel-red { display:flex; justify-content:space-between; align-items:center; background:#1c1c1c; padding:12px 14px; margin:8px 0; border-radius:10px; width:48%; height:80px; box-sizing:border-box; }
+.ime { width:55%; font-size:1.65em; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cena { width:40%; display:flex; justify-content:flex-end; align-items:center; gap:8px; font-size:2.6em; font-weight:bold; }
+.indikator { font-size:1.4em; line-height:1; position:relative; top:-2px; }
+.gore { color:#4CAF50; } .dole { color:#ff4d4d; } .stabilno { color:#ccc; }
+
+>>>>>>> Stashed changes
 /* Promo overlay */
 #promo-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:9999; text-align:center; color:white; }
 #promo-overlay video { width:100%; height:100%; object-fit:cover; }
@@ -270,6 +288,17 @@ h1 { font-size:2.4em; color:#4CAF50; text-align:center; margin:0; }
     <div id="promo-timer"></div>
 </div>
 
+<<<<<<< Updated upstream
+=======
+<div id="lista"></div>
+
+<div id="promo-overlay">
+    <video id="promo-video" autoplay muted></video>
+    <div id="promo-title">AKCIJA – Blue Frog</div>
+    <div id="promo-timer"></div>
+</div>
+
+>>>>>>> Stashed changes
 <script>
 async function ucitajSve() {
     const lista = document.getElementById("lista"); lista.innerHTML = "";

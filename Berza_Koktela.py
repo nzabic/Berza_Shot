@@ -4,6 +4,7 @@ from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
+<<<<<<< Updated upstream
 # ============================================================
 <<<<<<< Updated upstream
 # PROMO VIDEOS VARIABLES
@@ -28,6 +29,10 @@ clip_triggered = False
 # ============================================================
 # 1. KONFIGURACIJA APLIKACIJE
 =======
+# 1. KONFIGURACIJA
+>>>>>>> Stashed changes
+=======
+# ============================================================
 # 1. KONFIGURACIJA
 >>>>>>> Stashed changes
 # ============================================================
@@ -203,6 +208,7 @@ def registruj_rute(app):
         return render_template('pregled_transakcija.html', transakcije=transakcije)
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     @app.route('/dashboard')
     def dashboard():
         kokteli = Koktel.query.all()
@@ -264,6 +270,8 @@ def registruj_rute(app):
         current_index = (current_index + 1) % len(PROMO_KOKTELI) # Prolazimo kroz listu koktela
         return jsonify({"status": "moved to next"})
 =======
+=======
+>>>>>>> Stashed changes
     # Promo status endpoint
     @app.route('/api/promo_status')
     def promo_status():
@@ -277,6 +285,9 @@ def registruj_rute(app):
             })
         return jsonify({"aktivna": False})
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 # ============================================================
