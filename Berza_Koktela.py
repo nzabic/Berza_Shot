@@ -9,16 +9,52 @@ from sqlalchemy import func
 # PROMO VIDEOS VARIABLES
 # ============================================================
 # Menjati po potrebi
-CLIP_DELAY_SECONDS = 105         # 1:45 after server start
-PAUSE_BETWEEN_PROMO = 2          # Pauza izmedju dve promocija (u minutima)
-PROMO_SECONDS = 60               # Trajanje promocije (u sekundama)
-REPLAY_INTERVAL = 20             # Na koliko je video ponavlja u toku jedne promocije (u sekundama)
+CLIP_DELAY_SECONDS = 300     #  after server start
+PAUSE_BETWEEN_PROMO = 5          # Pauza izmedju dve promocija (u minutima)
+PROMO_SECONDS = 120               # Trajanje promocije (u sekundama)
+REPLAY_INTERVAL = 20            # Na koliko je video ponavlja u toku jedne promocije (u sekundama)
 
 PROMO_KOKTELI = [
-                    {"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 500, "video": "tramp_mai_tai.mp4"},
-                    {"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 400, "video": "devils.mp4"},
-                    {"CLIP_COCKTAIL_NAME": "BLUE FROG", "cena": 450, "video": "blue_frog_naruto.mp4"},
+
+{"CLIP_COCKTAIL_NAME": "CUBA LIBRE", "cena": 450, "video": "cuba_libre_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 550, "video": "mai_tai_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 590, "video": "devils_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}
+
+# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
+# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
+# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
+# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"}
+
                 ]
+# Promocije (promo cena / puna cena):
+
+# Cuba libre 450  / 580
+# Mai Tai 550 / 640
+# Devils 590 / 690
+# Hero 530 / 650
+# LA Ice Tea 580 / 650
+# Cosmo 450 / 580
+# Japanese Slipper 550 / 630
+
+# "ADIOS MOTHERFUCKER": 666,
+# "BAHAMA MAMA": 630,
+# "BEAST": 690,
+# "BLACK SABATH": 630,
+# "BLUE FROG": 650,
+# "BLUE LAGOON": 610,
+# "LONG ISLAND ICE TEA": 670,
+# "MARGARITA KOKTEL": 580,
+# "SEX ON THE BEACH": 630,
+# "SHOOTIRANJE": 666,
+# "STOPER": 666,
+# "TEQUILA SUNRISE": 630,
+# "VISKI SOUR": 630,
+
+
 # Ne menjati
 current_index = 0
 last_cycle_end_time = None
@@ -55,13 +91,13 @@ def kreiraj_aplikaciju():
 class Koktel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     naziv = db.Column(db.String(80), unique=True, nullable=False)
-    bazna_cena = db.Column(db.Float, nullable=False)
+    bazna_cena = db.Column(db.Integer, nullable=False)
 
-    trenutna_cena = db.Column(db.Float, nullable=False)
-    prethodna_cena = db.Column(db.Float, nullable=False)
+    trenutna_cena = db.Column(db.Integer, nullable=False)
+    prethodna_cena = db.Column(db.Integer, nullable=False)
 
-    minimalna_cena = db.Column(db.Float, nullable=False)
-    maksimalna_cena = db.Column(db.Float, nullable=False)
+    minimalna_cena = db.Column(db.Integer, nullable=False)
+    maksimalna_cena = db.Column(db.Integer, nullable=False)
 
     transakcije = db.relationship(
         'Transakcija',
@@ -71,8 +107,8 @@ class Koktel(db.Model):
     )
 
     def postavi_limite(self):
-        self.minimalna_cena = round(self.bazna_cena * 0.70, 2)
-        self.maksimalna_cena = round(self.bazna_cena * 1.30, 2)
+        self.minimalna_cena = int(round(self.bazna_cena * 0.70))
+        self.maksimalna_cena = int(round(self.bazna_cena * 1,40))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -117,7 +153,7 @@ def racunaj_novu_cenu(stara, prodato, min_cena, max_cena):
         nova = stara * (1 + prodato * 0.01)
     else:
         nova = stara * 0.98
-    return max(min_cena, min(round(nova, 2), max_cena))
+    return max(min_cena, min(int(round(nova)), max_cena))
 
 
 def validiraj_unos(request):
@@ -138,7 +174,7 @@ def validiraj_unos(request):
 def azuriraj_cene_koktela(app):
     with app.app_context():
 
-        cutoff = datetime.utcnow() - timedelta(seconds=30)
+        cutoff = datetime.utcnow() - timedelta(seconds=120)
 
         prodaja = {
             kid: ukupno
@@ -348,14 +384,14 @@ def inicijalizuj_bazu():
 # ============================================================
 # 7. SCHEDULER
 # ============================================================
-
+# Promene cene koktela
 def podesi_scheduler(app):
     scheduler.add_job(
         id='AzuriranjeCenaJob',
         func=azuriraj_cene_koktela,
         args=[app],
         trigger='interval',
-        seconds=30,
+        seconds=120,
         max_instances=1,
         coalesce=True
     )
