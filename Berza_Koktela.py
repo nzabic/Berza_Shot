@@ -4,9 +4,9 @@ from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
 from sqlalchemy import func
 import random
+from zoneinfo import ZoneInfo
 
-
-
+local_tz = ZoneInfo("Europe/Belgrade")
 # ============================================================
 # PROMO VIDEOS VARIABLES
 # ============================================================
@@ -48,7 +48,24 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"},
+
+# Treci krug
+
+{"CLIP_COCKTAIL_NAME": "CUBA LIBRE", "cena": 450, "video": "cuba_libre_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 550, "video": "mai_tai_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 590, "video": "devils_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "MARGARITA", "cena": 500, "video": "margarita_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"}
+
 
                 ]
 # Promocije (promo cena / puna cena):
@@ -133,7 +150,7 @@ class Koktel(db.Model):
 
     def postavi_limite(self):
         self.minimalna_cena = int(round(self.bazna_cena * 0.70))
-        self.maksimalna_cena = int(round(self.bazna_cena * 1,40))
+        self.maksimalna_cena = int(round(self.bazna_cena * 1.40))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -160,7 +177,7 @@ class Transakcija(db.Model):
 
     vremenska_oznaka = db.Column(
         db.DateTime,
-        default=lambda: datetime.utcnow() + timedelta(hours=1),
+        default=lambda: datetime.now(local_tz),
         index=True
     )
 
@@ -171,7 +188,7 @@ class IstorijaCena(db.Model):
     stara_cena = db.Column(db.Float, nullable=False)
     nova_cena = db.Column(db.Float, nullable=False)
     razlog = db.Column(db.String(100))
-    vremenska_oznaka = db.Column(db.DateTime, default=datetime.utcnow)
+    vremenska_oznaka = db.Column(db.DateTime, default=lambda: datetime.now(local_tz))
 
 
 # ============================================================
@@ -204,7 +221,7 @@ def validiraj_unos(request):
 def azuriraj_cene_koktela(app):
     with app.app_context():
 
-        cutoff = datetime.utcnow() - timedelta(seconds=600)
+        cutoff = datetime.now(local_tz) - timedelta(seconds=600)
 
         prodaja = {
             kid: ukupno
@@ -237,7 +254,7 @@ def azuriraj_cene_koktela(app):
             k.postavi_novu_cenu(nova)
 
         db.session.commit()
-        print(f"[{datetime.now():%H:%M:%S}] ✔ Ažurirane cene")
+        print(f"[{datetime.now(local_tz):%H:%M:%S}] ✔ Ažurirane cene")
 
 
 # ============================================================
@@ -319,7 +336,7 @@ def registruj_rute(app):
     def check_clip():
         global current_index, last_cycle_end_time, clip_triggered
 
-        elapsed_since_start = (datetime.utcnow() - SERVER_START_TIME).total_seconds()
+        elapsed_since_start = (datetime.now(local_tz) - SERVER_START_TIME).total_seconds()
         if elapsed_since_start < CLIP_DELAY_SECONDS:
             return jsonify({"play": False})
 
@@ -342,7 +359,7 @@ def registruj_rute(app):
             # print("datetime.utcnow()", datetime.utcnow())
             # print("last_cycle_end_time", last_cycle_end_time),
             # print("timedelta", timedelta(minutes=PAUSE_BETWEEN_PROMO))
-            if datetime.utcnow() - last_cycle_end_time <= timedelta(minutes=PAUSE_BETWEEN_PROMO):
+            if datetime.now(local_tz)- last_cycle_end_time <= timedelta(minutes=PAUSE_BETWEEN_PROMO):
                 return jsonify({"play": False})
 
         # Check price for the specific cocktail currently in rotation
@@ -367,7 +384,7 @@ def registruj_rute(app):
     def next_cocktail():
         global current_index, clip_triggered, last_cycle_end_time
         clip_triggered = False
-        last_cycle_end_time = datetime.utcnow()  # Zapocinjemo pauzu
+        last_cycle_end_time = datetime.now(local_tz)  # Zapocinjemo pauzu
         current_index = (current_index + 1) % len(PROMO_KOKTELI) # Prolazimo kroz listu koktela
         return jsonify({"status": "moved to next"})
 
@@ -435,7 +452,7 @@ def podesi_scheduler(app):
 
 def main():
     global SERVER_START_TIME
-    SERVER_START_TIME = datetime.utcnow()
+    SERVER_START_TIME = datetime.now(local_tz)
 
     app = kreiraj_aplikaciju()
     registruj_rute(app)
