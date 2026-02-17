@@ -16,18 +16,37 @@ REPLAY_INTERVAL = 20            # Na koliko je video ponavlja u toku jedne promo
 
 PROMO_KOKTELI = [
 
+# Prvi krug
+
 {"CLIP_COCKTAIL_NAME": "CUBA LIBRE", "cena": 450, "video": "cuba_libre_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 550, "video": "mai_tai_v3.mp4"},
 {"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 590, "video": "devils_v3.mp4"},
 {"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
-{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}.
+{"CLIP_COCKTAIL_NAME": "MARGARITA", "cena": 500, "video": "margarita_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"},
 
-# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
-# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
-# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"},
-# {"CLIP_COCKTAIL_NAME": "", "cena":, "video": ".mp4"}
+# Drugi krug
+
+{"CLIP_COCKTAIL_NAME": "CUBA LIBRE", "cena": 450, "video": "cuba_libre_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "MAI TAI", "cena": 550, "video": "mai_tai_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "DEVILS ICE TEA", "cena": 590, "video": "devils_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}.
+{"CLIP_COCKTAIL_NAME": "MARGARITA", "cena": 500, "video": "margarita_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"}
 
                 ]
 # Promocije (promo cena / puna cena):
@@ -39,20 +58,24 @@ PROMO_KOKTELI = [
 # LA Ice Tea 580 / 650
 # Cosmo 450 / 580
 # Japanese Slipper 550 / 630
+# Margarita 500 / 580
+# Beast 550 / 690
+# Black Sabbath 500 / 630
+# Stopper 570 / 666
+# Sex on the beach 550 / 630
+# Whiskey sour 500 / 630
+
+
+# Nije ukljuceno u promocije
 
 # "ADIOS MOTHERFUCKER": 666,
 # "BAHAMA MAMA": 630,
-# "BEAST": 690,
-# "BLACK SABATH": 630,
 # "BLUE FROG": 650,
 # "BLUE LAGOON": 610,
 # "LONG ISLAND ICE TEA": 670,
-# "MARGARITA KOKTEL": 580,
-# "SEX ON THE BEACH": 630,
 # "SHOOTIRANJE": 666,
-# "STOPER": 666,
 # "TEQUILA SUNRISE": 630,
-# "VISKI SOUR": 630,
+
 
 
 # Ne menjati
@@ -361,12 +384,12 @@ def inicijalizuj_bazu():
         "LA ICE TEA": 650,
         "LONG ISLAND ICE TEA": 670,
         "MAI TAI": 640,
-        "MARGARITA KOKTEL": 580,
+        "MARGARITA": 580,
         "SEX ON THE BEACH": 630,
         "SHOOTIRANJE": 666,
-        "STOPER": 666,
+        "STOPPER": 666,
         "TEQUILA SUNRISE": 630,
-        "VISKI SOUR": 630,
+        "WHISKEY SOUR": 640,
     }
 
     db.create_all()
