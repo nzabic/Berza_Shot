@@ -3,15 +3,17 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
 from sqlalchemy import func
+import random
+
 
 
 # ============================================================
 # PROMO VIDEOS VARIABLES
 # ============================================================
 # Menjati po potrebi
-CLIP_DELAY_SECONDS = 300     #  after server start
+CLIP_DELAY_SECONDS = 780     #  after server start
 PAUSE_BETWEEN_PROMO = 5          # Pauza izmedju dve promocija (u minutima)
-PROMO_SECONDS = 120               # Trajanje promocije (u sekundama)
+PROMO_SECONDS = 300               # Trajanje promocije (u sekundama)
 REPLAY_INTERVAL = 20            # Na koliko je video ponavlja u toku jedne promocije (u sekundama)
 
 PROMO_KOKTELI = [
@@ -24,7 +26,7 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
-{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}.
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"},
 {"CLIP_COCKTAIL_NAME": "MARGARITA", "cena": 500, "video": "margarita_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
@@ -40,7 +42,7 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "HERO", "cena": 530, "video": "hero_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "LA ICE TEA", "cena": 580, "video": "la_ice_tea_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "COSMOPOLITAN", "cena": 450, "video": "cosmo_v4.mp4"},
-{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"}.
+{"CLIP_COCKTAIL_NAME": "JAPANESE SLIPPER", "cena": 550, "video": "jap_slipper_v3.mp4"},
 {"CLIP_COCKTAIL_NAME": "MARGARITA", "cena": 500, "video": "margarita_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
@@ -141,7 +143,7 @@ class Koktel(db.Model):
 
     def postavi_novu_cenu(self, nova):
         self.prethodna_cena = self.trenutna_cena
-        self.trenutna_cena = round(nova, 2)
+        self.trenutna_cena = nova
 
 
 class Transakcija(db.Model):
@@ -155,7 +157,12 @@ class Transakcija(db.Model):
     kolicina = db.Column(db.Integer, nullable=False)
     broj_stola = db.Column(db.String(10), nullable=False)
     cena_pri_narudzbi = db.Column(db.Float, nullable=False)
-    vremenska_oznaka = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    vremenska_oznaka = db.Column(
+        db.DateTime,
+        default=lambda: datetime.utcnow() + timedelta(hours=1),
+        index=True
+    )
 
 
 class IstorijaCena(db.Model):
@@ -175,7 +182,7 @@ def racunaj_novu_cenu(stara, prodato, min_cena, max_cena):
     if prodato > 0:
         nova = stara * (1 + prodato * 0.01)
     else:
-        nova = stara * 0.98
+        nova = stara * random.uniform(0.965, 0.98)
     return max(min_cena, min(int(round(nova)), max_cena))
 
 
@@ -197,7 +204,7 @@ def validiraj_unos(request):
 def azuriraj_cene_koktela(app):
     with app.app_context():
 
-        cutoff = datetime.utcnow() - timedelta(seconds=120)
+        cutoff = datetime.utcnow() - timedelta(seconds=600)
 
         prodaja = {
             kid: ukupno
@@ -298,6 +305,7 @@ def registruj_rute(app):
     @app.route('/transakcije')
     def pregled_transakcija():
         transakcije = Transakcija.query.order_by(
+            Transakcija.broj_stola.asc(),
             Transakcija.vremenska_oznaka.desc()
         ).all()
         return render_template('pregled_transakcija.html', transakcije=transakcije)
@@ -340,7 +348,7 @@ def registruj_rute(app):
         # Check price for the specific cocktail currently in rotation
         cocktail_db = Koktel.query.filter_by(naziv=config["CLIP_COCKTAIL_NAME"]).first()
 
-        if cocktail_db and cocktail_db.trenutna_cena >= config["cena"]:
+        if cocktail_db and cocktail_db.trenutna_cena*0.95 >= config["cena"]:
 
             print("Send request to play video: ", config["video"])
             clip_triggered = True
@@ -414,7 +422,7 @@ def podesi_scheduler(app):
         func=azuriraj_cene_koktela,
         args=[app],
         trigger='interval',
-        seconds=120,
+        seconds=600,
         max_instances=1,
         coalesce=True
     )
