@@ -31,7 +31,7 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
-{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "stopper_v3.mp4"},
 {"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"},
 
 # Drugi krug
@@ -47,8 +47,8 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
-{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
-{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"},
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "stopper_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v3.mp4"},
 
 # Treci krug
 
@@ -63,8 +63,8 @@ PROMO_KOKTELI = [
 {"CLIP_COCKTAIL_NAME": "BEAST", "cena":550, "video": "beast_v1.mp4"},
 {"CLIP_COCKTAIL_NAME": "BLACK SABATH", "cena":500, "video": "sabat_v2.mp4"},
 {"CLIP_COCKTAIL_NAME": "SEX ON THE BEACH", "cena": 550, "video": "sob_v1.mp4"},
-{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "sob_v1.mp4"},
-{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v2.mp4"}
+{"CLIP_COCKTAIL_NAME": "STOPPER", "cena":570, "video": "stopper_v3.mp4"},
+{"CLIP_COCKTAIL_NAME": "WHISKEY SOUR", "cena": 500, "video": "vs_v3.mp4"}
 
 
                 ]
